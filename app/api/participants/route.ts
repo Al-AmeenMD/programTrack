@@ -1,17 +1,21 @@
 import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import {
+  ApiError,
   handleApiError,
   paginatedResponse,
   paginationFromUrl,
   parseDate,
 } from "../../../lib/api";
+import { getFacilitatorProgramIds, requireAuth } from "../../../lib/auth";
 import { createOrEnrollParticipant } from "../../../lib/participants/createOrEnrollParticipant";
 import { prisma } from "../../../lib/prisma";
 import { createParticipantSchema } from "../../../lib/validation";
 
 export async function GET(req: NextRequest) {
   try {
+    const user = await requireAuth(req);
+
     const { searchParams } = new URL(req.url);
     const { page, pageSize, skip, take } = paginationFromUrl(req.url);
     const search = searchParams.get("search")?.trim();
@@ -21,11 +25,24 @@ export async function GET(req: NextRequest) {
       status: status === "inactive" ? "inactive" : "active",
     };
 
+    if (user.role === "facilitator") {
+      const assignedProgramIds = await getFacilitatorProgramIds(user.id);
+      where.enrollments = {
+        some: {
+          program_id: { in: assignedProgramIds },
+        },
+      };
+    }
+
     if (search) {
-      where.OR = [
-        { full_name: { contains: search, mode: "insensitive" } },
-        { email: { contains: search, mode: "insensitive" } },
-        { phone: { contains: search, mode: "insensitive" } },
+      where.AND = [
+        {
+          OR: [
+            { full_name: { contains: search, mode: "insensitive" } },
+            { email: { contains: search, mode: "insensitive" } },
+            { phone: { contains: search, mode: "insensitive" } },
+          ],
+        },
       ];
     }
 
@@ -52,7 +69,21 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await requireAuth(req);
     const body = createParticipantSchema.parse(await req.json());
+
+    if (user.role === "facilitator") {
+      if (!body.program_id) {
+        throw new ApiError(
+          "Facilitators can only create participants tied to an assigned program",
+          403
+        );
+      }
+      const assignedProgramIds = await getFacilitatorProgramIds(user.id);
+      if (!assignedProgramIds.includes(body.program_id)) {
+        throw new ApiError("Forbidden: program not assigned to facilitator", 403);
+      }
+    }
 
     if (body.program_id) {
       const result = await createOrEnrollParticipant(

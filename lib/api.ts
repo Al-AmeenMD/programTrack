@@ -19,8 +19,16 @@ export function handleApiError(error: unknown) {
     );
   }
 
-  if (error instanceof ApiError) {
-    return NextResponse.json({ error: error.message }, { status: error.status });
+  if (
+    error instanceof ApiError ||
+    (typeof error === "object" &&
+      error !== null &&
+      "status" in error &&
+      typeof (error as { status: unknown }).status === "number" &&
+      "message" in error)
+  ) {
+    const err = error as { message: string; status: number };
+    return NextResponse.json({ error: err.message }, { status: err.status });
   }
 
   if (error instanceof Prisma.PrismaClientKnownRequestError) {

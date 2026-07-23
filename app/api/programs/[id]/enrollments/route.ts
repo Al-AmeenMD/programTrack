@@ -1,10 +1,12 @@
 import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import {
+  ApiError,
   handleApiError,
   paginatedResponse,
   paginationFromUrl,
 } from "../../../../../lib/api";
+import { getFacilitatorProgramIds, requireAuth } from "../../../../../lib/auth";
 import { prisma } from "../../../../../lib/prisma";
 
 type RouteContext = {
@@ -15,7 +17,16 @@ type RouteContext = {
 
 export async function GET(req: NextRequest, context: RouteContext) {
   try {
+    const user = await requireAuth(req);
     const { id } = await context.params;
+
+    if (user.role === "facilitator") {
+      const assignedProgramIds = await getFacilitatorProgramIds(user.id);
+      if (!assignedProgramIds.includes(id)) {
+        throw new ApiError("Forbidden: program not assigned to facilitator", 403);
+      }
+    }
+
     const { searchParams } = new URL(req.url);
     const { page, pageSize, skip, take } = paginationFromUrl(req.url);
     const search = searchParams.get("search")?.trim();

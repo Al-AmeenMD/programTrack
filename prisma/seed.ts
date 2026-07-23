@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
+import bcrypt from "bcryptjs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -190,17 +191,20 @@ async function main() {
   }
 
   // --- Seed StaffUsers ---
+  const adminPasswordHash = bcrypt.hashSync("admin123", 10);
+  const facilitatorPasswordHash = bcrypt.hashSync("facilitator123", 10);
+
   const adminUser = await prisma.staffUser.upsert({
     where: { email: "admin@developmenthub.org" },
     update: {
       full_name: "Admin User",
-      password_hash: "mock-password-hash-admin",
+      password_hash: adminPasswordHash,
       role: "admin",
     },
     create: {
       full_name: "Admin User",
       email: "admin@developmenthub.org",
-      password_hash: "mock-password-hash-admin",
+      password_hash: adminPasswordHash,
       role: "admin",
     },
   });
@@ -209,13 +213,13 @@ async function main() {
     where: { email: "facilitator@developmenthub.org" },
     update: {
       full_name: "Facilitator User",
-      password_hash: "mock-password-hash-facilitator",
+      password_hash: facilitatorPasswordHash,
       role: "facilitator",
     },
     create: {
       full_name: "Facilitator User",
       email: "facilitator@developmenthub.org",
-      password_hash: "mock-password-hash-facilitator",
+      password_hash: facilitatorPasswordHash,
       role: "facilitator",
     },
   });

@@ -76,3 +76,29 @@ export const updateEnrollmentSchema = z
   .refine((data) => Object.keys(data).length > 0, {
     message: "Provide status or metadata to update",
   });
+
+export const loginSchema = z.object({
+  email: z.string().trim().email("Valid email is required"),
+  password: z.string().min(1, "Password is required"),
+});
+
+export const createStaffSchema = z.object({
+  full_name: z.string().trim().min(1, "full_name is required"),
+  email: z.string().trim().email("Valid email is required"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  role: z.enum(["admin", "facilitator"]),
+});
+
+export const updateStaffSchema = z
+  .object({
+    full_name: z.string().trim().min(1).optional(),
+    role: z.enum(["admin", "facilitator"]).optional(),
+    password: z.string().min(6).optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "Provide at least one field to update",
+  });
+
+export const assignStaffProgramSchema = z.object({
+  program_id: z.string().uuid("Valid program_id UUID is required"),
+});

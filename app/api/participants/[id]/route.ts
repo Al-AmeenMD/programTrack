@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
-import { handleApiError, parseDate } from "../../../../lib/api";
+import { ApiError, handleApiError, parseDate } from "../../../../lib/api";
+import { getFacilitatorProgramIds, requireAuth } from "../../../../lib/auth";
 import { prisma } from "../../../../lib/prisma";
 import { updateParticipantSchema } from "../../../../lib/validation";
 
@@ -10,14 +11,43 @@ type RouteContext = {
   }>;
 };
 
-export async function GET(_req: NextRequest, context: RouteContext) {
+async function checkFacilitatorParticipantAccess(
+  staffUserId: string,
+  participantId: string
+) {
+  const assignedProgramIds = await getFacilitatorProgramIds(staffUserId);
+
+  const enrollment = await prisma.enrollment.findFirst({
+    where: {
+      participant_id: participantId,
+      program_id: { in: assignedProgramIds },
+    },
+  });
+
+  if (!enrollment) {
+    throw new ApiError("Forbidden: participant not in your assigned programs", 403);
+  }
+
+  return assignedProgramIds;
+}
+
+export async function GET(req: NextRequest, context: RouteContext) {
   try {
+    const user = await requireAuth(req);
     const { id } = await context.params;
+
+    let assignedProgramIds: string[] | null = null;
+    if (user.role === "facilitator") {
+      assignedProgramIds = await checkFacilitatorParticipantAccess(user.id, id);
+    }
 
     const participant = await prisma.participant.findUnique({
       where: { id },
       include: {
         enrollments: {
+          where: assignedProgramIds
+            ? { program_id: { in: assignedProgramIds } }
+            : undefined,
           orderBy: { enrolled_at: "desc" },
           include: {
             program: true,
@@ -38,7 +68,13 @@ export async function GET(_req: NextRequest, context: RouteContext) {
 
 export async function PATCH(req: NextRequest, context: RouteContext) {
   try {
+    const user = await requireAuth(req);
     const { id } = await context.params;
+
+    if (user.role === "facilitator") {
+      await checkFacilitatorParticipantAccess(user.id, id);
+    }
+
     const body = updateParticipantSchema.parse(await req.json());
 
     const participant = await prisma.participant.update({
@@ -64,9 +100,14 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
   }
 }
 
-export async function DELETE(_req: NextRequest, context: RouteContext) {
+export async function DELETE(req: NextRequest, context: RouteContext) {
   try {
+    const user = await requireAuth(req);
     const { id } = await context.params;
+
+    if (user.role === "facilitator") {
+      await checkFacilitatorParticipantAccess(user.id, id);
+    }
 
     const participant = await prisma.participant.update({
       where: { id },

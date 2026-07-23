@@ -6,11 +6,14 @@ import {
   paginationFromUrl,
   parseDate,
 } from "../../../lib/api";
+import { getFacilitatorProgramIds, requireAuth, requireRole } from "../../../lib/auth";
 import { prisma } from "../../../lib/prisma";
 import { createProgramSchema } from "../../../lib/validation";
 
 export async function GET(req: NextRequest) {
   try {
+    const user = await requireAuth(req);
+
     const { searchParams } = new URL(req.url);
     const { page, pageSize, skip, take } = paginationFromUrl(req.url);
     const search = searchParams.get("search")?.trim();
@@ -24,6 +27,11 @@ export async function GET(req: NextRequest) {
     const where: Prisma.ProgramWhereInput = status
       ? { status: status as (typeof allowedStatuses)[number] }
       : { status: { not: "cancelled" } };
+
+    if (user.role === "facilitator") {
+      const assignedProgramIds = await getFacilitatorProgramIds(user.id);
+      where.id = { in: assignedProgramIds };
+    }
 
     if (search) {
       where.name = { contains: search, mode: "insensitive" };
@@ -52,6 +60,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    await requireRole("admin", req);
     const body = createProgramSchema.parse(await req.json());
 
     const program = await prisma.program.create({

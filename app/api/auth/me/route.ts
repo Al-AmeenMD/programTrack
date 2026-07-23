@@ -1,0 +1,22 @@
+import { NextRequest, NextResponse } from "next/server";
+import { handleApiError } from "../../../../lib/api";
+import { getFacilitatorProgramIds, requireAuth } from "../../../../lib/auth";
+
+export async function GET(req: NextRequest) {
+  try {
+    const user = await requireAuth(req);
+    const assignedProgramIds =
+      user.role === "facilitator"
+        ? await getFacilitatorProgramIds(user.id)
+        : [];
+
+    return NextResponse.json({
+      data: {
+        ...user,
+        assignedProgramIds,
+      },
+    });
+  } catch (error) {
+    return handleApiError(error);
+  }
+}

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { handleApiError, parseDate } from "../../../../lib/api";
+import { ApiError, handleApiError, parseDate } from "../../../../lib/api";
+import { getFacilitatorProgramIds, requireAuth, requireRole } from "../../../../lib/auth";
 import { prisma } from "../../../../lib/prisma";
 import { updateProgramSchema } from "../../../../lib/validation";
 
@@ -9,9 +10,17 @@ type RouteContext = {
   }>;
 };
 
-export async function GET(_req: NextRequest, context: RouteContext) {
+export async function GET(req: NextRequest, context: RouteContext) {
   try {
+    const user = await requireAuth(req);
     const { id } = await context.params;
+
+    if (user.role === "facilitator") {
+      const assignedProgramIds = await getFacilitatorProgramIds(user.id);
+      if (!assignedProgramIds.includes(id)) {
+        throw new ApiError("Forbidden: program not assigned to facilitator", 403);
+      }
+    }
 
     const program = await prisma.program.findUnique({
       where: { id },
@@ -34,6 +43,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
 
 export async function PATCH(req: NextRequest, context: RouteContext) {
   try {
+    await requireRole("admin", req);
     const { id } = await context.params;
     const body = updateProgramSchema.parse(await req.json());
 
@@ -57,8 +67,9 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
   }
 }
 
-export async function DELETE(_req: NextRequest, context: RouteContext) {
+export async function DELETE(req: NextRequest, context: RouteContext) {
   try {
+    await requireRole("admin", req);
     const { id } = await context.params;
 
     const program = await prisma.program.update({
