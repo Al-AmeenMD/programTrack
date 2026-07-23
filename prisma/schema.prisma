@@ -1,0 +1,194 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ParticipantStatus {
+  active
+  inactive
+}
+
+enum ProgramStatus {
+  upcoming
+  active
+  completed
+  cancelled
+}
+
+enum EnrollmentStatus {
+  registered
+  active
+  dropped
+  completed
+}
+
+model Participant {
+  id            String            @id @default(uuid()) @db.Uuid
+  full_name     String
+  email         String?           @unique
+  phone         String?           @unique
+  gender        String?
+  date_of_birth DateTime?         @db.Date
+  metadata      Json              @default("{}")
+  status        ParticipantStatus @default(active)
+  created_at    DateTime          @default(now())
+  updated_at    DateTime          @updatedAt
+
+  enrollments   Enrollment[]
+
+  @@map("participants")
+}
+
+model Program {
+  id          String        @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  start_date  DateTime?     @db.Date
+  end_date    DateTime?     @db.Date
+  status      ProgramStatus @default(upcoming)
+  created_by  String?
+  created_at  DateTime      @default(now())
+  updated_at  DateTime      @updatedAt
+
+  enrollments    Enrollment[]
+  program_staff  ProgramStaff[]
+  sessions       Session[]
+  form_templates FormTemplate[]
+
+  @@map("programs")
+}
+
+model Enrollment {
+  id             String           @id @default(uuid()) @db.Uuid
+  participant_id String           @db.Uuid
+  program_id     String           @db.Uuid
+  status         EnrollmentStatus @default(registered)
+  metadata       Json             @default("{}")
+  enrolled_at    DateTime         @default(now())
+  created_at     DateTime         @default(now())
+  updated_at     DateTime         @updatedAt
+
+  participant    Participant      @relation(fields: [participant_id], references: [id], onDelete: Restrict)
+  program        Program          @relation(fields: [program_id], references: [id], onDelete: Restrict)
+  attendance_records AttendanceRecord[]
+  form_responses FormResponse[]
+  certificate    Certificate?
+
+  @@unique([participant_id, program_id])
+  @@map("enrollments")
+}
+
+enum StaffRole {
+  admin
+  facilitator
+}
+
+enum AttendanceStatus {
+  present
+  absent
+  late
+  excused
+}
+
+enum FormType {
+  intake
+}
+
+model StaffUser {
+  id            String             @id @default(uuid()) @db.Uuid
+  full_name     String
+  email         String             @unique
+  password_hash String
+  role          StaffRole
+  created_at    DateTime           @default(now())
+  updated_at    DateTime           @updatedAt
+
+  program_staff ProgramStaff[]
+  marked_attendance AttendanceRecord[]
+
+  @@map("staff_users")
+}
+
+model ProgramStaff {
+  id            String    @id @default(uuid()) @db.Uuid
+  staff_user_id String    @db.Uuid
+  program_id    String    @db.Uuid
+
+  staff_user    StaffUser @relation(fields: [staff_user_id], references: [id], onDelete: Restrict)
+  program       Program   @relation(fields: [program_id], references: [id], onDelete: Restrict)
+
+  @@unique([staff_user_id, program_id])
+  @@map("program_staff")
+}
+
+model Session {
+  id           String             @id @default(uuid()) @db.Uuid
+  program_id   String             @db.Uuid
+  title        String
+  session_date DateTime           @db.Date
+  created_at   DateTime           @default(now())
+
+  program      Program            @relation(fields: [program_id], references: [id], onDelete: Restrict)
+  attendance   AttendanceRecord[]
+
+  @@map("sessions")
+}
+
+model AttendanceRecord {
+  id            String           @id @default(uuid()) @db.Uuid
+  session_id    String           @db.Uuid
+  enrollment_id String           @db.Uuid
+  status        AttendanceStatus
+  marked_at     DateTime         @default(now())
+  marked_by     String?          @db.Uuid
+
+  session       Session          @relation(fields: [session_id], references: [id], onDelete: Restrict)
+  enrollment    Enrollment       @relation(fields: [enrollment_id], references: [id], onDelete: Restrict)
+  staff_user    StaffUser?       @relation(fields: [marked_by], references: [id], onDelete: Restrict)
+
+  @@unique([session_id, enrollment_id])
+  @@map("attendance_records")
+}
+
+model FormTemplate {
+  id         String         @id @default(uuid()) @db.Uuid
+  program_id String         @db.Uuid
+  name       String
+  type       FormType
+  fields     Json           @default("[]")
+  created_at DateTime       @default(now())
+
+  program    Program        @relation(fields: [program_id], references: [id], onDelete: Restrict)
+  responses  FormResponse[]
+
+  @@map("form_templates")
+}
+
+model FormResponse {
+  id               String       @id @default(uuid()) @db.Uuid
+  form_template_id String       @db.Uuid
+  enrollment_id    String       @db.Uuid
+  answers          Json         @default("{}")
+  submitted_at     DateTime     @default(now())
+
+  form_template    FormTemplate @relation(fields: [form_template_id], references: [id], onDelete: Restrict)
+  enrollment       Enrollment   @relation(fields: [enrollment_id], references: [id], onDelete: Restrict)
+
+  @@map("form_responses")
+}
+
+model Certificate {
+  id              String     @id @default(uuid()) @db.Uuid
+  enrollment_id   String     @unique @db.Uuid
+  issued_at       DateTime   @default(now())
+  certificate_url String
+  template_used   String
+  created_at      DateTime   @default(now())
+
+  enrollment      Enrollment @relation(fields: [enrollment_id], references: [id], onDelete: Restrict)
+
+  @@map("certificates")
+}
