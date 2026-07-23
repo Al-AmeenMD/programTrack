@@ -1,0 +1,7 @@
+full_name,email,phone,gender,date_of_birth
+Khadijah Usman,khadijah.usman@example.com,+2348020000001,female,2002-05-15
+Ibrahim Garba,,+2348020000002,male,1998-10-20
+Duplicate Khadijah,khadijah.usman@example.com,+2348020000003,female,
+Missing Contact Info,,,female,
+Bad Email User,invalid-email-format,+2348020000005,male,
+Tunde Bakare,tunde.bakare@example.com,+2348020000006,male,2000-01-01
