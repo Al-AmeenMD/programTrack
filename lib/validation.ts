@@ -102,3 +102,29 @@ export const updateStaffSchema = z
 export const assignStaffProgramSchema = z.object({
   program_id: z.string().uuid("Valid program_id UUID is required"),
 });
+
+export const formFieldSchema = z.object({
+  id: z.string().optional(),
+  label: z.string().trim().min(1, "Field label is required"),
+  field_type: z.enum(["text", "number", "select", "date", "checkbox"]),
+  required: z.boolean().default(false),
+  options: z.array(z.string().trim().min(1)).optional(),
+});
+
+export const createFormTemplateSchema = z.object({
+  name: z.string().trim().min(1, "Form name is required"),
+  fields: z.array(formFieldSchema).min(1, "At least one field is required"),
+});
+
+export const updateFormTemplateSchema = z
+  .object({
+    name: z.string().trim().min(1).optional(),
+    fields: z.array(formFieldSchema).optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "Provide name or fields to update",
+  });
+
+export const submitFormResponseSchema = z.object({
+  answers: z.record(z.string(), z.unknown()),
+});

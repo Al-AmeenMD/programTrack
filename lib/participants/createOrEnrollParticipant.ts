@@ -60,6 +60,8 @@ export async function createOrEnrollParticipant(
       enrollment: null,
       wasNewParticipant: !existingParticipant,
       wasNewEnrollment: false,
+      has_intake_form: false,
+      form_template_id: null,
     };
   }
 
@@ -71,6 +73,17 @@ export async function createOrEnrollParticipant(
   if (!program) {
     throw new ApiError("Program not found", 404);
   }
+
+  const intakeTemplate = await prisma.formTemplate.findFirst({
+    where: {
+      program_id: programId,
+      type: "intake",
+    },
+    select: { id: true },
+  });
+
+  const hasIntakeForm = Boolean(intakeTemplate);
+  const formTemplateId = intakeTemplate?.id ?? null;
 
   const existingEnrollment = await prisma.enrollment.findUnique({
     where: {
@@ -87,6 +100,8 @@ export async function createOrEnrollParticipant(
       enrollment: existingEnrollment,
       wasNewParticipant: !existingParticipant,
       wasNewEnrollment: false,
+      has_intake_form: hasIntakeForm,
+      form_template_id: formTemplateId,
     };
   }
 
@@ -103,5 +118,7 @@ export async function createOrEnrollParticipant(
     enrollment,
     wasNewParticipant: !existingParticipant,
     wasNewEnrollment: true,
+    has_intake_form: hasIntakeForm,
+    form_template_id: formTemplateId,
   };
 }
