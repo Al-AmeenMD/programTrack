@@ -132,7 +132,7 @@ async function main() {
     createdEnrollmentIds.push(enroll2.id);
 
     const part3 = await prisma.participant.create({
-      data: { full_name: "Participant Three (Will Drop)", email: `p3-${tag}@example.com` },
+      data: { full_name: "Participant Three", email: `p3-${tag}@example.com` },
     });
     createdParticipantIds.push(part3.id);
     const enroll3 = await prisma.enrollment.create({
@@ -237,25 +237,8 @@ async function main() {
     console.log("PASS: Unmarked participants surfaced with status: null");
 
     console.log("--- Test 4: Attendance Upsert Re-Marking & Individual PATCH ---");
-    // Mark enrollment 1 as present
+    // Mark enrollment 1 as "late"
     const markRes1 = await responseJson<Array<{ id: string; status: string }>>(
-      await postAttendance(
-        new Request(`http://localhost/api/sessions/${sessionData.id}/attendance`, {
-          method: "POST",
-          headers: { Cookie: facilitatorCookie },
-          body: JSON.stringify({
-            records: [{ enrollment_id: enroll1.id, status: "present" }],
-          }),
-        }) as never,
-        { params: Promise.resolve({ id: sessionData.id }) }
-      )
-    );
-    assert.equal(markRes1.data?.[0].status, "present");
-    const rec1Id = markRes1.data[0].id;
-    if (!createdAttendanceIds.includes(rec1Id)) createdAttendanceIds.push(rec1Id);
-
-    // Re-mark enrollment 1 as late (upsert must update existing record, not create duplicate or error)
-    const reMarkRes1 = await responseJson<Array<{ id: string; status: string }>>(
       await postAttendance(
         new Request(`http://localhost/api/sessions/${sessionData.id}/attendance`, {
           method: "POST",
@@ -267,26 +250,45 @@ async function main() {
         { params: Promise.resolve({ id: sessionData.id }) }
       )
     );
-    assert.equal(reMarkRes1.data?.[0].id, rec1Id, "Upsert must update existing record ID");
-    assert.equal(reMarkRes1.data?.[0].status, "late");
+    assert.equal(markRes1.data?.[0].status, "late");
+    const rec1Id = markRes1.data[0].id;
+    if (!createdAttendanceIds.includes(rec1Id)) createdAttendanceIds.push(rec1Id);
 
-    // PATCH individual attendance record
-    const patchAttendanceRes = await responseJson<{ id: string; status: string }>(
-      await updateAttendanceRecord(
-        new Request(`http://localhost/api/attendance/${rec1Id}`, {
-          method: "PATCH",
+    // Re-mark enrollment 1 as "excused"
+    const reMarkRes1 = await responseJson<Array<{ id: string; status: string }>>(
+      await postAttendance(
+        new Request(`http://localhost/api/sessions/${sessionData.id}/attendance`, {
+          method: "POST",
           headers: { Cookie: facilitatorCookie },
-          body: JSON.stringify({ status: "excused" }),
+          body: JSON.stringify({
+            records: [{ enrollment_id: enroll1.id, status: "excused" }],
+          }),
         }) as never,
-        { params: Promise.resolve({ id: rec1Id }) }
+        { params: Promise.resolve({ id: sessionData.id }) }
       )
     );
-    assert.equal(patchAttendanceRes.data?.status, "excused");
+    assert.equal(reMarkRes1.data?.[0].id, rec1Id, "Upsert must update existing record ID");
+    assert.equal(reMarkRes1.data?.[0].status, "excused");
+
+    // Change enrollment 1 back to "late" for the mark-all-present overwrite fix test
+    await updateAttendanceRecord(
+      new Request(`http://localhost/api/attendance/${rec1Id}`, {
+        method: "PATCH",
+        headers: { Cookie: facilitatorCookie },
+        body: JSON.stringify({ status: "late" }),
+      }) as never,
+      { params: Promise.resolve({ id: rec1Id }) }
+    );
     console.log("PASS: Attendance upsert re-marking and PATCH record update verified");
 
-    console.log("--- Test 5: Bulk Mark-All-Present & Exception List ---");
-    // Call mark-all-present for session 1 with except list for enrollment 2 (marked absent)
-    const markAllRes = await responseJson<Array<{ id: string; enrollment_id: string; status: string }>>(
+    console.log("--- Test 5: Fix Verification - mark-all-present Excludes Pre-marked Records and Does NOT Overwrite 'late' Status ---");
+    // Before call: enroll1 is manually marked "late". enroll2 and enroll3 are unmarked.
+    // Call mark-all-present without including enroll1 in except. Include enroll2 as excepted "absent".
+    const markAllRes = await responseJson<{
+      marked_present: Array<{ id: string; enrollment_id: string; status: string }>;
+      skipped_already_marked: Array<{ id: string; enrollment_id: string; status: string }>;
+      excepted: Array<{ id: string; enrollment_id: string; status: string }>;
+    }>(
       await markAllPresent(
         new Request(`http://localhost/api/sessions/${sessionData.id}/attendance/mark-all-present`, {
           method: "POST",
@@ -298,16 +300,44 @@ async function main() {
         { params: Promise.resolve({ id: sessionData.id }) }
       )
     );
-    assert.equal(markAllRes.data?.length, 3);
-    for (const rec of markAllRes.data!) {
-      if (!createdAttendanceIds.includes(rec.id)) createdAttendanceIds.push(rec.id);
-      if (rec.enrollment_id === enroll2.id) {
-        assert.equal(rec.status, "absent", "Excepted enrollment 2 should be marked absent");
-      } else {
-        assert.equal(rec.status, "present", "Other active enrollments should be marked present");
-      }
+
+    const markAllData = markAllRes.data!;
+    assert(markAllData.marked_present, "Response must include marked_present array");
+    assert(markAllData.skipped_already_marked, "Response must include skipped_already_marked array");
+    assert(markAllData.excepted, "Response must include excepted array");
+
+    // Track created attendance IDs for cleanup
+    for (const r of [...markAllData.marked_present, ...markAllData.skipped_already_marked, ...markAllData.excepted]) {
+      if (r.id && !createdAttendanceIds.includes(r.id)) createdAttendanceIds.push(r.id);
     }
-    console.log("PASS: mark-all-present executed with exception list");
+
+    // 1. Confirm pre-marked enroll1 (status: "late") was skipped and NOT overwritten to "present"
+    const skippedEnroll1 = markAllData.skipped_already_marked.find((r) => r.enrollment_id === enroll1.id);
+    assert(skippedEnroll1, "enroll1 must be in skipped_already_marked list");
+    assert.equal(skippedEnroll1.status, "late", "Pre-marked enrollment 1 status MUST remain 'late'");
+
+    // Double check DB state for enroll1
+    const dbRecord1 = await prisma.attendanceRecord.findUnique({
+      where: {
+        session_id_enrollment_id: {
+          session_id: sessionData.id,
+          enrollment_id: enroll1.id,
+        },
+      },
+    });
+    assert.equal(dbRecord1?.status, "late", "Database state for enroll1 MUST remain 'late'");
+
+    // 2. Confirm previously unmarked enroll3 was newly marked "present"
+    const newlyMarked3 = markAllData.marked_present.find((r) => r.enrollment_id === enroll3.id);
+    assert(newlyMarked3, "enroll3 must be in marked_present list");
+    assert.equal(newlyMarked3.status, "present");
+
+    // 3. Confirm excepted enroll2 was marked "absent" per except payload
+    const excepted2 = markAllData.excepted.find((r) => r.enrollment_id === enroll2.id);
+    assert(excepted2, "enroll2 must be in excepted list");
+    assert.equal(excepted2.status, "absent");
+
+    console.log("PASS: mark-all-present fix verified! Pre-marked 'late' status preserved and response categories clearly distinguished");
 
     console.log("--- Test 6: Dropped Enrollment Filtering & Historical Access ---");
     // Update participant 3's enrollment status to 'dropped'
@@ -345,7 +375,7 @@ async function main() {
     assert.equal(droppedItem?.enrollment_status, "dropped");
     console.log("PASS: Dropped enrollment filtered out by default, accessible via include_dropped=true");
 
-    console.log("Phase 6 verification passed successfully");
+    console.log("Phase 6 fix verification passed successfully");
   } finally {
     console.log("--- Cleanup: Strictly deleting ONLY exact created test IDs in FK order ---");
     if (createdAttendanceIds.length > 0) {

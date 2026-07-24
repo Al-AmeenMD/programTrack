@@ -56,7 +56,13 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     }
 
-    // Query active enrollments in the program
+    // Query pre-existing attendance records for this session
+    const existingRecords = await prisma.attendanceRecord.findMany({
+      where: { session_id: sessionId },
+    });
+    const existingRecordMap = new Map(existingRecords.map((r) => [r.enrollment_id, r]));
+
+    // Query all active enrollments in the program
     const activeEnrollments = await prisma.enrollment.findMany({
       where: {
         program_id: session.program_id,
@@ -65,49 +71,91 @@ export async function POST(req: NextRequest, context: RouteContext) {
       select: { id: true },
     });
 
-    const upsertedRecords = [];
+    const markedPresentRecords = [];
+    const skippedAlreadyMarkedRecords = [];
+    const exceptedRecords = [];
 
     for (const enrollment of activeEnrollments) {
-      const isExcepted = exceptMap.has(enrollment.id);
-      const explicitExceptStatus = exceptMap.get(enrollment.id);
+      const enrollmentId = enrollment.id;
+      const isExcepted = exceptMap.has(enrollmentId);
+      const explicitExceptStatus = exceptMap.get(enrollmentId);
+      const existingRecord = existingRecordMap.get(enrollmentId);
 
-      if (isExcepted && !explicitExceptStatus) {
-        // Skip marking this enrollment completely
-        continue;
-      }
-
-      const targetStatus: AttendanceStatus = isExcepted && explicitExceptStatus
-        ? explicitExceptStatus
-        : "present";
-
-      const record = await prisma.attendanceRecord.upsert({
-        where: {
-          session_id_enrollment_id: {
-            session_id: sessionId,
-            enrollment_id: enrollment.id,
+      if (isExcepted) {
+        if (explicitExceptStatus) {
+          // Upsert with explicit status provided in except array
+          const record = await prisma.attendanceRecord.upsert({
+            where: {
+              session_id_enrollment_id: {
+                session_id: sessionId,
+                enrollment_id: enrollmentId,
+              },
+            },
+            update: {
+              status: explicitExceptStatus,
+              marked_at: new Date(),
+              marked_by: user.id,
+            },
+            create: {
+              session_id: sessionId,
+              enrollment_id: enrollmentId,
+              status: explicitExceptStatus,
+              marked_by: user.id,
+            },
+          });
+          exceptedRecords.push(record);
+        } else {
+          // Excluded without explicit status change
+          if (existingRecord) {
+            exceptedRecords.push(existingRecord);
+          } else {
+            exceptedRecords.push({
+              enrollment_id: enrollmentId,
+              session_id: sessionId,
+              status: null,
+              reason: "Excepted from mark-all-present",
+            });
+          }
+        }
+      } else if (existingRecord) {
+        // Participant ALREADY has an attendance record for this session -> DO NOT OVERWRITE!
+        skippedAlreadyMarkedRecords.push(existingRecord);
+      } else {
+        // Participant is active, unmarked, and not excepted -> Mark as "present"
+        const record = await prisma.attendanceRecord.upsert({
+          where: {
+            session_id_enrollment_id: {
+              session_id: sessionId,
+              enrollment_id: enrollmentId,
+            },
           },
-        },
-        update: {
-          status: targetStatus,
-          marked_at: new Date(),
-          marked_by: user.id,
-        },
-        create: {
-          session_id: sessionId,
-          enrollment_id: enrollment.id,
-          status: targetStatus,
-          marked_by: user.id,
-        },
-      });
-
-      upsertedRecords.push(record);
+          update: {
+            status: "present",
+            marked_at: new Date(),
+            marked_by: user.id,
+          },
+          create: {
+            session_id: sessionId,
+            enrollment_id: enrollmentId,
+            status: "present",
+            marked_by: user.id,
+          },
+        });
+        markedPresentRecords.push(record);
+      }
     }
 
     return NextResponse.json({
-      data: upsertedRecords,
+      data: {
+        marked_present: markedPresentRecords,
+        skipped_already_marked: skippedAlreadyMarkedRecords,
+        excepted: exceptedRecords,
+      },
       meta: {
         total_active_enrollments: activeEnrollments.length,
-        marked_count: upsertedRecords.length,
+        marked_present_count: markedPresentRecords.length,
+        skipped_already_marked_count: skippedAlreadyMarkedRecords.length,
+        excepted_count: exceptedRecords.length,
       },
     });
   } catch (error) {
