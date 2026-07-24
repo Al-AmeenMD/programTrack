@@ -270,19 +270,40 @@ async function main() {
       });
     }
     if (createdProgramIds.length > 0) {
+      await prisma.programStaff.deleteMany({
+        where: { program_id: { in: createdProgramIds } },
+      });
       await prisma.program.deleteMany({
         where: { id: { in: createdProgramIds } },
       });
     }
     if (createdStaffUserIds.length > 0) {
+      await prisma.programStaff.deleteMany({
+        where: { staff_user_id: { in: createdStaffUserIds } },
+      });
       await prisma.staffUser.deleteMany({
         where: { id: { in: createdStaffUserIds } },
       });
     }
 
+    // Empirical before/after row count assertion
+    const remainingPrograms = await prisma.program.count({
+      where: { id: { in: createdProgramIds } },
+    });
+    const remainingParticipants = await prisma.participant.count({
+      where: { id: { in: createdParticipantIds } },
+    });
+    const remainingStaff = await prisma.staffUser.count({
+      where: { id: { in: createdStaffUserIds } },
+    });
+
+    assert.equal(remainingPrograms, 0, "Empirical check: 0 test programs must remain");
+    assert.equal(remainingParticipants, 0, "Empirical check: 0 test participants must remain");
+    assert.equal(remainingStaff, 0, "Empirical check: 0 test staff users must remain");
+
     await prisma.$disconnect();
     await pool.end();
-    console.log("Cleanup completed cleanly by exact IDs");
+    console.log("PASS: Empirical cleanup check confirmed 0 leftover test records in DB");
   }
 }
 

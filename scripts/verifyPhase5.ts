@@ -328,9 +328,28 @@ async function main() {
       });
     }
 
+    // Empirical before/after row count assertion
+    const remainingPrograms = await prisma.program.count({
+      where: { id: { in: createdProgramIds } },
+    });
+    const remainingParticipants = await prisma.participant.count({
+      where: { id: { in: createdParticipantIds } },
+    });
+    const remainingTemplates = await prisma.formTemplate.count({
+      where: { id: { in: createdFormTemplateIds } },
+    });
+    const remainingResponses = await prisma.formResponse.count({
+      where: { id: { in: createdFormResponseIds } },
+    });
+
+    assert.equal(remainingPrograms, 0, "Empirical check: 0 test programs must remain");
+    assert.equal(remainingParticipants, 0, "Empirical check: 0 test participants must remain");
+    assert.equal(remainingTemplates, 0, "Empirical check: 0 test form templates must remain");
+    assert.equal(remainingResponses, 0, "Empirical check: 0 test form responses must remain");
+
     await prisma.$disconnect();
     await pool.end();
-    console.log("Cleanup completed cleanly by exact IDs");
+    console.log("PASS: Empirical cleanup check confirmed 0 leftover test records in DB");
   }
 }
 

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
+
 import { POST as loginHandler } from "../app/api/auth/login/route";
 import { POST as logoutHandler } from "../app/api/auth/logout/route";
 import { GET as meHandler } from "../app/api/auth/me/route";
@@ -36,6 +37,12 @@ async function main() {
   });
   const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
   const tag = `phase3-${Date.now()}`;
+
+  // Strict tracking of created entity IDs for cleanup
+  const createdParticipantIds: string[] = [];
+  const createdProgramIds: string[] = [];
+  const createdEnrollmentIds: string[] = [];
+  const createdStaffUserIds: string[] = [];
 
   try {
     console.log("--- Test 1: Login invalid credentials returns 401 ---");
@@ -108,9 +115,12 @@ async function main() {
     const programA = await prisma.program.create({
       data: { name: `Assigned Program A ${tag}`, status: "active" },
     });
+    createdProgramIds.push(programA.id);
+
     const programB = await prisma.program.create({
       data: { name: `Unassigned Program B ${tag}`, status: "active" },
     });
+    createdProgramIds.push(programB.id);
 
     const facilitatorUser = await prisma.staffUser.findUniqueOrThrow({
       where: { email: "facilitator@developmenthub.org" },
@@ -135,28 +145,37 @@ async function main() {
     const part1 = await prisma.participant.create({
       data: { full_name: "Assigned Participant Only", email: `part1-${tag}@example.com` },
     });
+    createdParticipantIds.push(part1.id);
     const enroll1 = await prisma.enrollment.create({
       data: { participant_id: part1.id, program_id: programA.id, status: "active" },
     });
+    createdEnrollmentIds.push(enroll1.id);
 
     // Create Participant 2 in Program B (Unassigned)
     const part2 = await prisma.participant.create({
       data: { full_name: "Unassigned Participant Only", email: `part2-${tag}@example.com` },
     });
-    await prisma.enrollment.create({
+    createdParticipantIds.push(part2.id);
+    const enroll2 = await prisma.enrollment.create({
       data: { participant_id: part2.id, program_id: programB.id, status: "active" },
     });
+    createdEnrollmentIds.push(enroll2.id);
 
     // Create Dual-Enrolled Participant 3 (In BOTH Program A and Program B)
     const partDual = await prisma.participant.create({
       data: { full_name: "Dual Enrolled Participant", email: `partdual-${tag}@example.com` },
     });
+    createdParticipantIds.push(partDual.id);
+
     const enrollDualA = await prisma.enrollment.create({
       data: { participant_id: partDual.id, program_id: programA.id, status: "active" },
     });
+    createdEnrollmentIds.push(enrollDualA.id);
+
     const enrollDualB = await prisma.enrollment.create({
       data: { participant_id: partDual.id, program_id: programB.id, status: "active" },
     });
+    createdEnrollmentIds.push(enrollDualB.id);
 
     // Facilitator GET /api/participants
     const facilitatorParticipantsRes = await responseJson<Array<{ id: string }>>(
@@ -248,6 +267,7 @@ async function main() {
     );
     assert(newStaffRes.data?.id);
     assert.equal(newStaffRes.data.role, "facilitator");
+    createdStaffUserIds.push(newStaffRes.data.id);
 
     const assignRes = await assignStaffProgram(
       new Request(`http://localhost/api/staff/${newStaffRes.data.id}/programs`, {
@@ -272,8 +292,52 @@ async function main() {
 
     console.log("Phase 3 verification passed successfully");
   } finally {
+    console.log("--- Cleanup: Strictly deleting ONLY exact created test IDs ---");
+    if (createdEnrollmentIds.length > 0) {
+      await prisma.enrollment.deleteMany({
+        where: { id: { in: createdEnrollmentIds } },
+      });
+    }
+    if (createdParticipantIds.length > 0) {
+      await prisma.participant.deleteMany({
+        where: { id: { in: createdParticipantIds } },
+      });
+    }
+    if (createdProgramIds.length > 0) {
+      await prisma.programStaff.deleteMany({
+        where: { program_id: { in: createdProgramIds } },
+      });
+      await prisma.program.deleteMany({
+        where: { id: { in: createdProgramIds } },
+      });
+    }
+    if (createdStaffUserIds.length > 0) {
+      await prisma.programStaff.deleteMany({
+        where: { staff_user_id: { in: createdStaffUserIds } },
+      });
+      await prisma.staffUser.deleteMany({
+        where: { id: { in: createdStaffUserIds } },
+      });
+    }
+
+    // Empirical before/after row count assertion
+    const remainingPrograms = await prisma.program.count({
+      where: { id: { in: createdProgramIds } },
+    });
+    const remainingParticipants = await prisma.participant.count({
+      where: { id: { in: createdParticipantIds } },
+    });
+    const remainingStaff = await prisma.staffUser.count({
+      where: { id: { in: createdStaffUserIds } },
+    });
+
+    assert.equal(remainingPrograms, 0, "Empirical check: 0 test programs must remain");
+    assert.equal(remainingParticipants, 0, "Empirical check: 0 test participants must remain");
+    assert.equal(remainingStaff, 0, "Empirical check: 0 test staff users must remain");
+
     await prisma.$disconnect();
     await pool.end();
+    console.log("PASS: Empirical cleanup check confirmed 0 leftover test records in DB");
   }
 }
 
