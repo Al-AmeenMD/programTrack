@@ -1,0 +1,395 @@
+"use client";
+
+import React, { use, useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Edit, Trash2, Calendar, Mail, Phone, User, AlertCircle, RefreshCw } from "lucide-react";
+import { StatusBadge } from "@/components/ui/Badge";
+import { Modal, ConfirmDialog } from "@/components/ui/Dialog";
+
+type Enrollment = {
+  id: string;
+  program_id: string;
+  status: string;
+  created_at: string;
+  program: {
+    id: string;
+    name: string;
+    status: string;
+  };
+};
+
+type ParticipantDetail = {
+  id: string;
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+  gender: string | null;
+  date_of_birth: string | null;
+  status: string;
+  created_at: string;
+  enrollments: Enrollment[];
+};
+
+type RouteContext = {
+  params: Promise<{ id: string }>;
+};
+
+export default function ParticipantDetailPage({ params }: RouteContext) {
+  const { id } = use(params);
+  const router = useRouter();
+
+  const [participant, setParticipant] = useState<ParticipantDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Edit Modal State
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    full_name: "",
+    email: "",
+    phone: "",
+    gender: "",
+    date_of_birth: "",
+  });
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  // Delete Modal State
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const fetchParticipant = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/participants/${id}`);
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to load participant details");
+      }
+      setParticipant(json.data);
+      setEditForm({
+        full_name: json.data.full_name || "",
+        email: json.data.email || "",
+        phone: json.data.phone || "",
+        gender: json.data.gender || "",
+        date_of_birth: json.data.date_of_birth
+          ? new Date(json.data.date_of_birth).toISOString().split("T")[0]
+          : "",
+      });
+    } catch (err: unknown) {
+      setError((err as { message?: string }).message || "Failed to load participant");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchParticipant();
+  }, [id]);
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditLoading(true);
+    setEditError(null);
+
+    try {
+      const res = await fetch(`/api/participants/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          full_name: editForm.full_name,
+          email: editForm.email || null,
+          phone: editForm.phone || null,
+          gender: editForm.gender || null,
+          date_of_birth: editForm.date_of_birth || null,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to update participant");
+      }
+
+      setIsEditOpen(false);
+      fetchParticipant();
+    } catch (err: unknown) {
+      setEditError((err as { message?: string }).message || "Failed to update participant");
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    setDeleteLoading(true);
+    try {
+      const res = await fetch(`/api/participants/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error || "Failed to delete participant");
+      }
+      router.push("/participants");
+      router.refresh();
+    } catch (err: unknown) {
+      alert((err as { message?: string }).message || "Failed to delete participant");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-12 text-center text-xs text-slate-500 flex items-center justify-center space-x-2">
+        <RefreshCw className="w-4 h-4 animate-spin text-teal-700" />
+        <span>Loading participant details...</span>
+      </div>
+    );
+  }
+
+  if (error || !participant) {
+    return (
+      <div className="space-y-4">
+        <Link
+          href="/participants"
+          className="inline-flex items-center space-x-1.5 text-xs text-slate-500 hover:text-slate-900"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Participants</span>
+        </Link>
+        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-md">
+          {error || "Participant not found"}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Back Link & Header */}
+      <div>
+        <Link
+          href="/participants"
+          className="inline-flex items-center space-x-1 text-xs text-slate-500 hover:text-slate-900 mb-3"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Back to Participants</span>
+        </Link>
+
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-slate-200">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+              {participant.full_name}
+            </h1>
+            <p className="text-xs text-slate-500">ID: {participant.id}</p>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setIsEditOpen(true)}
+              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-medium rounded-md transition flex items-center space-x-1.5"
+            >
+              <Edit className="w-3.5 h-3.5" />
+              <span>Edit Info</span>
+            </button>
+            <button
+              onClick={() => setIsDeleteOpen(true)}
+              className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-medium rounded-md transition flex items-center space-x-1.5 border border-rose-200"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete Participant</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Info Card */}
+      <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+        <div className="space-y-1">
+          <span className="text-slate-400 font-medium flex items-center space-x-1">
+            <Mail className="w-3.5 h-3.5" />
+            <span>Email</span>
+          </span>
+          <p className="font-medium text-slate-900">{participant.email || "—"}</p>
+        </div>
+
+        <div className="space-y-1">
+          <span className="text-slate-400 font-medium flex items-center space-x-1">
+            <Phone className="w-3.5 h-3.5" />
+            <span>Phone</span>
+          </span>
+          <p className="font-mono text-slate-900">{participant.phone || "—"}</p>
+        </div>
+
+        <div className="space-y-1">
+          <span className="text-slate-400 font-medium flex items-center space-x-1">
+            <User className="w-3.5 h-3.5" />
+            <span>Gender</span>
+          </span>
+          <p className="font-medium text-slate-900 capitalize">{participant.gender || "—"}</p>
+        </div>
+
+        <div className="space-y-1">
+          <span className="text-slate-400 font-medium flex items-center space-x-1">
+            <Calendar className="w-3.5 h-3.5" />
+            <span>Date of Birth</span>
+          </span>
+          <p className="font-medium text-slate-900">
+            {participant.date_of_birth
+              ? new Date(participant.date_of_birth).toLocaleDateString()
+              : "—"}
+          </p>
+        </div>
+      </div>
+
+      {/* Program Enrollments */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold text-slate-900">Program Enrollments</h2>
+          <span className="text-xs text-slate-500">
+            Enrolled in {participant.enrollments.length} program(s)
+          </span>
+        </div>
+
+        <div className="bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden">
+          {participant.enrollments.length === 0 ? (
+            <div className="p-6 text-center text-xs text-slate-500">
+              This participant is not currently enrolled in any programs.
+            </div>
+          ) : (
+            <table className="w-full text-xs text-left">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold uppercase tracking-wider text-[11px]">
+                <tr>
+                  <th className="py-2.5 px-4">Program Name</th>
+                  <th className="py-2.5 px-4">Enrollment Status</th>
+                  <th className="py-2.5 px-4">Program Status</th>
+                  <th className="py-2.5 px-4">Enrolled Date</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {participant.enrollments.map((en) => (
+                  <tr key={en.id} className="hover:bg-slate-50 transition">
+                    <td className="py-2.5 px-4 font-medium text-slate-900">
+                      <Link
+                        href={`/programs/${en.program.id}`}
+                        className="hover:text-teal-700 hover:underline"
+                      >
+                        {en.program.name}
+                      </Link>
+                    </td>
+                    <td className="py-2.5 px-4">
+                      <StatusBadge status={en.status} />
+                    </td>
+                    <td className="py-2.5 px-4">
+                      <StatusBadge status={en.program.status} />
+                    </td>
+                    <td className="py-2.5 px-4 text-slate-600">
+                      {new Date(en.created_at).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* Edit Modal */}
+      <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Edit Participant Info">
+        <form onSubmit={handleEditSubmit} className="space-y-4">
+          {editError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-md flex items-center space-x-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{editError}</span>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1">Full Name</label>
+            <input
+              type="text"
+              required
+              value={editForm.full_name}
+              onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+              className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Email</label>
+              <input
+                type="email"
+                value={editForm.email}
+                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Phone</label>
+              <input
+                type="text"
+                value={editForm.phone}
+                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Gender</label>
+              <select
+                value={editForm.gender}
+                onChange={(e) => setEditForm({ ...editForm, gender: e.target.value })}
+                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+              >
+                <option value="">Select Gender</option>
+                <option value="female">Female</option>
+                <option value="male">Male</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Date of Birth</label>
+              <input
+                type="date"
+                value={editForm.date_of_birth}
+                onChange={(e) => setEditForm({ ...editForm, date_of_birth: e.target.value })}
+                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setIsEditOpen(false)}
+              className="px-3.5 py-1.5 rounded-md text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={editLoading}
+              className="px-4 py-1.5 rounded-md text-xs font-medium bg-teal-700 hover:bg-teal-800 text-white transition disabled:opacity-50 flex items-center space-x-1.5"
+            >
+              {editLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+              <span>Save Changes</span>
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={isDeleteOpen}
+        onClose={() => setIsDeleteOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Participant"
+        description={`Are you sure you want to delete "${participant.full_name}"?`}
+        isLoading={deleteLoading}
+      />
+    </div>
+  );
+}

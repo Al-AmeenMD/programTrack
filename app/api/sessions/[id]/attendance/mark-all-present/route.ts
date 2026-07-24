@@ -1,4 +1,4 @@
-import { AttendanceStatus } from "@prisma/client";
+import { AttendanceStatus, EnrollmentStatus } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError } from "../../../../../../lib/api";
 import { getFacilitatorProgramIds, requireAuth } from "../../../../../../lib/auth";
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const activeEnrollments = await prisma.enrollment.findMany({
       where: {
         program_id: session.program_id,
-        status: { in: ["registered", "active", "completed"] },
+        status: { in: [EnrollmentStatus.registered, EnrollmentStatus.active, EnrollmentStatus.completed] },
       },
       select: { id: true },
     });

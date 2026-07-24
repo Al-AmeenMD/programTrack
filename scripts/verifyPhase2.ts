@@ -76,7 +76,7 @@ async function main() {
     );
 
     assert.equal(third.participant.id, first.participant.id);
-    assert.equal(third.enrollment.id, second.enrollment.id);
+    assert.equal(third.enrollment?.id, second.enrollment?.id);
     assert.equal(third.wasNewParticipant, false);
     assert.equal(third.wasNewEnrollment, false);
 

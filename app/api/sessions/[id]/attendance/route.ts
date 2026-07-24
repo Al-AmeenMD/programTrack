@@ -1,4 +1,4 @@
-import { AttendanceStatus } from "@prisma/client";
+import { AttendanceStatus, EnrollmentStatus } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError } from "../../../../../lib/api";
 import { getFacilitatorProgramIds, requireAuth } from "../../../../../lib/auth";
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     const enrollmentStatusFilter = includeDropped
       ? {}
-      : { status: { in: ["registered", "active", "completed"] } };
+      : { status: { in: [EnrollmentStatus.registered, EnrollmentStatus.active, EnrollmentStatus.completed] } };
 
     const enrollments = await prisma.enrollment.findMany({
       where: {
@@ -59,20 +59,18 @@ export async function GET(req: NextRequest, context: RouteContext) {
       },
     });
 
-    const existingRecords = await prisma.attendanceRecord.findMany({
-      where: {
-        session_id: sessionId,
-      },
+    const attendanceRecords = await prisma.attendanceRecord.findMany({
+      where: { session_id: sessionId },
     });
 
-    const recordMap = new Map(existingRecords.map((r) => [r.enrollment_id, r]));
+    const attendanceMap = new Map(attendanceRecords.map((r) => [r.enrollment_id, r]));
 
-    const result = enrollments.map((e) => {
-      const record = recordMap.get(e.id) || null;
+    const result = enrollments.map((en) => {
+      const record = attendanceMap.get(en.id);
       return {
-        enrollment_id: e.id,
-        enrollment_status: e.status,
-        participant: e.participant,
+        enrollment_id: en.id,
+        participant: en.participant,
+        enrollment_status: en.status,
         attendance_record: record
           ? {
               id: record.id,
@@ -111,32 +109,33 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     }
 
-    const json = await req.json();
-    const payload = Array.isArray(json) ? { records: json } : json;
-    const body = markAttendanceSchema.parse(payload);
+    const body = await req.json();
+    const { records } = markAttendanceSchema.parse(body);
 
     const upsertedRecords = [];
-    for (const item of body.records) {
-      const record = await prisma.attendanceRecord.upsert({
+
+    for (const rec of records) {
+      const result = await prisma.attendanceRecord.upsert({
         where: {
           session_id_enrollment_id: {
             session_id: sessionId,
-            enrollment_id: item.enrollment_id,
+            enrollment_id: rec.enrollment_id,
           },
         },
         update: {
-          status: item.status as AttendanceStatus,
+          status: rec.status as AttendanceStatus,
           marked_at: new Date(),
           marked_by: user.id,
         },
         create: {
           session_id: sessionId,
-          enrollment_id: item.enrollment_id,
-          status: item.status as AttendanceStatus,
+          enrollment_id: rec.enrollment_id,
+          status: rec.status as AttendanceStatus,
           marked_by: user.id,
         },
       });
-      upsertedRecords.push(record);
+
+      upsertedRecords.push(result);
     }
 
     return NextResponse.json({ data: upsertedRecords });
