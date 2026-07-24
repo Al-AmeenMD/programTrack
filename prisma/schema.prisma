@@ -129,6 +129,7 @@ model Session {
   program_id   String             @db.Uuid
   title        String
   session_date DateTime           @db.Date
+  is_active    Boolean            @default(true)
   created_at   DateTime           @default(now())
 
   program      Program            @relation(fields: [program_id], references: [id], onDelete: Restrict)

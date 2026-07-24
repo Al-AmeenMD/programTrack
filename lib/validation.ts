@@ -128,3 +128,46 @@ export const updateFormTemplateSchema = z
 export const submitFormResponseSchema = z.object({
   answers: z.record(z.string(), z.unknown()),
 });
+
+export const createSessionSchema = z.object({
+  title: z.string().trim().min(1, "Session title is required"),
+  session_date: z.string().trim().min(1, "Session date is required"),
+});
+
+export const updateSessionSchema = z
+  .object({
+    title: z.string().trim().min(1).optional(),
+    session_date: z.string().trim().min(1).optional(),
+    is_active: z.boolean().optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "Provide at least one field to update",
+  });
+
+export const markAttendanceItemSchema = z.object({
+  enrollment_id: z.string().uuid("Valid enrollment_id UUID is required"),
+  status: z.enum(["present", "absent", "late", "excused"]),
+});
+
+export const markAttendanceSchema = z.object({
+  records: z.array(markAttendanceItemSchema).min(1, "At least one attendance record is required"),
+});
+
+export const updateAttendanceRecordSchema = z.object({
+  status: z.enum(["present", "absent", "late", "excused"]),
+});
+
+export const markAllPresentSchema = z.object({
+  except: z
+    .array(
+      z.union([
+        z.string().uuid(),
+        z.object({
+          enrollment_id: z.string().uuid(),
+          status: z.enum(["present", "absent", "late", "excused"]).optional(),
+        }),
+      ])
+    )
+    .optional()
+    .default([]),
+});
