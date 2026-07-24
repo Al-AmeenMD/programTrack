@@ -1,7 +1,7 @@
 import { jwtVerify } from "jose";
 import { NextRequest, NextResponse } from "next/server";
 
-const JWT_SECRET = process.env.JWT_SECRET || "programtrack-secret-key-change-in-production";
+const JWT_SECRET = process.env.JWT_SECRET || "programtrack-super-secret-jwt-key-2026-development-hub";
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
