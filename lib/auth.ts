@@ -102,10 +102,13 @@ export async function getCurrentStaffUser(req?: NextRequest) {
       full_name: true,
       email: true,
       role: true,
+      status: true,
       created_at: true,
       updated_at: true,
     },
   });
+
+  if (!user || user.status === "inactive") return null;
 
   return user;
 }
@@ -141,4 +144,26 @@ export async function getFacilitatorProgramIds(
   });
 
   return assignments.map((a) => a.program_id);
+}
+
+export async function getFacilitatorCourseIds(
+  staffUserId: string,
+  programId: string
+): Promise<string[]> {
+  const ps = await prisma.programStaff.findUnique({
+    where: {
+      staff_user_id_program_id: {
+        staff_user_id: staffUserId,
+        program_id: programId,
+      },
+    },
+    include: {
+      courses: {
+        select: { course_id: true },
+      },
+    },
+  });
+
+  if (!ps) return [];
+  return ps.courses.map((c) => c.course_id);
 }

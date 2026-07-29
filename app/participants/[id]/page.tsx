@@ -3,7 +3,7 @@
 import React, { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Edit, Trash2, Calendar, Mail, Phone, User, AlertCircle, RefreshCw } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Calendar, Mail, Phone, User, ShieldCheck, GraduationCap, AlertCircle, RefreshCw } from "lucide-react";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Modal, ConfirmDialog } from "@/components/ui/Dialog";
 
@@ -21,6 +21,11 @@ type Enrollment = {
 
 type ParticipantDetail = {
   id: string;
+  first_name: string;
+  middle_name: string | null;
+  last_name: string;
+  nin_number: string;
+  qualification: string | null;
   full_name: string;
   email: string | null;
   phone: string | null;
@@ -46,7 +51,11 @@ export default function ParticipantDetailPage({ params }: RouteContext) {
   // Edit Modal State
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({
-    full_name: "",
+    first_name: "",
+    middle_name: "",
+    last_name: "",
+    nin_number: "",
+    qualification: "",
     email: "",
     phone: "",
     gender: "",
@@ -70,7 +79,11 @@ export default function ParticipantDetailPage({ params }: RouteContext) {
       }
       setParticipant(json.data);
       setEditForm({
-        full_name: json.data.full_name || "",
+        first_name: json.data.first_name || "",
+        middle_name: json.data.middle_name || "",
+        last_name: json.data.last_name || "",
+        nin_number: json.data.nin_number || "",
+        qualification: json.data.qualification || "",
         email: json.data.email || "",
         phone: json.data.phone || "",
         gender: json.data.gender || "",
@@ -99,7 +112,11 @@ export default function ParticipantDetailPage({ params }: RouteContext) {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          full_name: editForm.full_name,
+          first_name: editForm.first_name,
+          middle_name: editForm.middle_name || null,
+          last_name: editForm.last_name,
+          nin_number: editForm.nin_number,
+          qualification: editForm.qualification || null,
           email: editForm.email || null,
           phone: editForm.phone || null,
           gender: editForm.gender || null,
@@ -164,6 +181,8 @@ export default function ParticipantDetailPage({ params }: RouteContext) {
     );
   }
 
+  const displayName = participant.full_name || [participant.first_name, participant.middle_name, participant.last_name].filter(Boolean).join(" ");
+
   return (
     <div className="space-y-6">
       {/* Back Link & Header */}
@@ -179,7 +198,7 @@ export default function ParticipantDetailPage({ params }: RouteContext) {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-slate-200">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              {participant.full_name}
+              {displayName}
             </h1>
             <p className="text-xs text-slate-500">ID: {participant.id}</p>
           </div>
@@ -204,7 +223,37 @@ export default function ParticipantDetailPage({ params }: RouteContext) {
       </div>
 
       {/* Info Card */}
-      <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+      <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 text-xs">
+        <div className="space-y-1">
+          <span className="text-slate-400 font-medium flex items-center space-x-1">
+            <User className="w-3.5 h-3.5 text-teal-700" />
+            <span>Name Structure</span>
+          </span>
+          <p className="font-semibold text-slate-900">
+            {participant.first_name} {participant.middle_name ? `"${participant.middle_name}" ` : ""}{participant.last_name}
+          </p>
+        </div>
+
+        <div className="space-y-1">
+          <span className="text-slate-400 font-medium flex items-center space-x-1">
+            <ShieldCheck className="w-3.5 h-3.5 text-teal-700" />
+            <span>NIN Number</span>
+          </span>
+          <p className="font-mono font-bold text-slate-900">
+            <span className={`px-2 py-0.5 rounded ${participant.nin_number === 'NIN-PENDING' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-800'}`}>
+              {participant.nin_number || "—"}
+            </span>
+          </p>
+        </div>
+
+        <div className="space-y-1">
+          <span className="text-slate-400 font-medium flex items-center space-x-1">
+            <GraduationCap className="w-3.5 h-3.5 text-teal-700" />
+            <span>Qualification</span>
+          </span>
+          <p className="font-semibold text-slate-900">{participant.qualification || "—"}</p>
+        </div>
+
         <div className="space-y-1">
           <span className="text-slate-400 font-medium flex items-center space-x-1">
             <Mail className="w-3.5 h-3.5" />
@@ -219,14 +268,6 @@ export default function ParticipantDetailPage({ params }: RouteContext) {
             <span>Phone</span>
           </span>
           <p className="font-mono text-slate-900">{participant.phone || "—"}</p>
-        </div>
-
-        <div className="space-y-1">
-          <span className="text-slate-400 font-medium flex items-center space-x-1">
-            <User className="w-3.5 h-3.5" />
-            <span>Gender</span>
-          </span>
-          <p className="font-medium text-slate-900 capitalize">{participant.gender || "—"}</p>
         </div>
 
         <div className="space-y-1">
@@ -304,15 +345,64 @@ export default function ParticipantDetailPage({ params }: RouteContext) {
             </div>
           )}
 
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">Full Name</label>
-            <input
-              type="text"
-              required
-              value={editForm.full_name}
-              onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
-              className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-            />
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                First Name <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={editForm.first_name}
+                onChange={(e) => setEditForm({ ...editForm, first_name: e.target.value })}
+                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Middle Name</label>
+              <input
+                type="text"
+                value={editForm.middle_name}
+                onChange={(e) => setEditForm({ ...editForm, middle_name: e.target.value })}
+                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Surname / Last Name <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={editForm.last_name}
+                onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })}
+                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                NIN Number <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={editForm.nin_number}
+                onChange={(e) => setEditForm({ ...editForm, nin_number: e.target.value })}
+                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700 font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Qualification</label>
+              <input
+                type="text"
+                value={editForm.qualification}
+                onChange={(e) => setEditForm({ ...editForm, qualification: e.target.value })}
+                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -387,7 +477,7 @@ export default function ParticipantDetailPage({ params }: RouteContext) {
         onClose={() => setIsDeleteOpen(false)}
         onConfirm={handleDeleteConfirm}
         title="Delete Participant"
-        description={`Are you sure you want to delete "${participant.full_name}"?`}
+        description={`Are you sure you want to delete "${displayName}"?`}
         isLoading={deleteLoading}
       />
     </div>

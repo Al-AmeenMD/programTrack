@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ApiError, handleApiError } from "../../../../../lib/api";
-import { getFacilitatorProgramIds, requireAuth } from "../../../../../lib/auth";
-import { parseCsvString, previewBulkUpload, RawCsvRow } from "../../../../../lib/bulkUpload";
+import { ApiError, handleApiError } from "@/lib/api";
+import { getFacilitatorProgramIds, requireAuth } from "@/lib/auth";
+import { parseCsvString, previewBulkUpload, RawCsvRow } from "@/lib/bulkUpload";
 
 type RouteContext = {
   params: Promise<{

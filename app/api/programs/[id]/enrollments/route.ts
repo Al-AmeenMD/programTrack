@@ -31,9 +31,10 @@ export async function GET(req: NextRequest, context: RouteContext) {
     const { page, pageSize, skip, take } = paginationFromUrl(req.url);
     const search = searchParams.get("search")?.trim();
     const status = searchParams.get("status")?.trim();
+    const courseId = searchParams.get("course_id")?.trim();
     const allowedStatuses = ["registered", "active", "dropped", "completed"] as const;
 
-    if (status && !allowedStatuses.includes(status as (typeof allowedStatuses)[number])) {
+    if (status && status !== "all" && !allowedStatuses.includes(status as (typeof allowedStatuses)[number])) {
       return NextResponse.json({ error: "Invalid status filter" }, { status: 400 });
     }
 
@@ -48,8 +49,11 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     const where: Prisma.EnrollmentWhereInput = {
       program_id: id,
-      ...(status
+      ...(courseId ? { course_id: courseId } : {}),
+      ...(status && status !== "all"
         ? { status: status as (typeof allowedStatuses)[number] }
+        : status === "all"
+        ? {}
         : { status: { not: "dropped" } }),
     };
 
@@ -72,6 +76,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
         include: {
           participant: true,
           program: true,
+          course: true,
         },
       }),
       prisma.enrollment.count({ where }),

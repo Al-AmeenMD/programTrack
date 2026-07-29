@@ -44,6 +44,7 @@ export function handleApiError(error: unknown) {
     }
   }
 
+  console.error("API Error caught:", error);
   return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 }
 

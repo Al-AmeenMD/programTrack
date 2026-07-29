@@ -114,7 +114,7 @@ async function main() {
 
     // Create 3 participants & enrollments in Program A
     const part1 = await prisma.participant.create({
-      data: { full_name: "Participant One", email: `p1-${tag}@example.com` },
+      data: { first_name: "Participant", last_name: "One", nin_number: "NIN-TEST", full_name: "Participant One", email: `p1-${tag}@example.com` },
     });
     createdParticipantIds.push(part1.id);
     const enroll1 = await prisma.enrollment.create({
@@ -123,7 +123,7 @@ async function main() {
     createdEnrollmentIds.push(enroll1.id);
 
     const part2 = await prisma.participant.create({
-      data: { full_name: "Participant Two", email: `p2-${tag}@example.com` },
+      data: { first_name: "Participant", last_name: "Two", nin_number: "NIN-TEST", full_name: "Participant Two", email: `p2-${tag}@example.com` },
     });
     createdParticipantIds.push(part2.id);
     const enroll2 = await prisma.enrollment.create({
@@ -132,7 +132,7 @@ async function main() {
     createdEnrollmentIds.push(enroll2.id);
 
     const part3 = await prisma.participant.create({
-      data: { full_name: "Participant Three", email: `p3-${tag}@example.com` },
+      data: { first_name: "Participant", last_name: "Three", nin_number: "NIN-TEST", full_name: "Participant Three", email: `p3-${tag}@example.com` },
     });
     createdParticipantIds.push(part3.id);
     const enroll3 = await prisma.enrollment.create({

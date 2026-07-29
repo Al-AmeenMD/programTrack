@@ -22,6 +22,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       data: {
         ...(body.full_name !== undefined && { full_name: body.full_name }),
         ...(body.role !== undefined && { role: body.role }),
+        ...(body.status !== undefined && { status: body.status }),
         ...(body.password !== undefined && {
           password_hash: hashPassword(body.password),
         }),
@@ -31,6 +32,32 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         full_name: true,
         email: true,
         role: true,
+        status: true,
+        created_at: true,
+        updated_at: true,
+      },
+    });
+
+    return NextResponse.json({ data: staffUser });
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
+
+export async function DELETE(req: NextRequest, context: RouteContext) {
+  try {
+    await requireRole("admin", req);
+    const { id } = await context.params;
+
+    const staffUser = await prisma.staffUser.update({
+      where: { id },
+      data: { status: "inactive" },
+      select: {
+        id: true,
+        full_name: true,
+        email: true,
+        role: true,
+        status: true,
         created_at: true,
         updated_at: true,
       },

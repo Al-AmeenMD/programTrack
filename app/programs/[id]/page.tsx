@@ -13,7 +13,8 @@ import {
   Trash2,
   Edit,
   Ban,
-  CheckCircle2,
+  Plus,
+  BookOpen,
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
@@ -22,10 +23,18 @@ import { Modal, ConfirmDialog } from "@/components/ui/Dialog";
 import { BulkUploadModal } from "@/components/BulkUploadModal";
 import { useAuth } from "@/components/AuthProvider";
 
+type CourseItem = {
+  id: string;
+  program_id: string;
+  name: string;
+  created_at: string;
+};
+
 type Enrollment = {
   id: string;
   participant_id: string;
   program_id: string;
+  course_id?: string | null;
   status: string;
   created_at: string;
   participant: {
@@ -34,6 +43,10 @@ type Enrollment = {
     email: string | null;
     phone: string | null;
   };
+  course?: {
+    id: string;
+    name: string;
+  } | null;
 };
 
 type SessionItem = {
@@ -77,16 +90,17 @@ export default function ProgramDetailPage({ params }: RouteContext) {
   const { user, assignedProgramIds } = useAuth();
 
   const isAdmin = user?.role === "admin";
-  const isAssigned = isAdmin || assignedProgramIds.includes(id);
+  const isAssigned = isAdmin || (assignedProgramIds || []).includes(id);
 
   const [program, setProgram] = useState<ProgramDetail | null>(null);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [courses, setCourses] = useState<CourseItem[]>([]);
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [formTemplate, setFormTemplate] = useState<FormTemplateData | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"enrollments" | "sessions" | "form-template">("enrollments");
+  const [activeTab, setActiveTab] = useState<"enrollments" | "courses" | "sessions" | "form-template">("enrollments");
 
   // Edit Program Modal
   const [isEditProgramOpen, setIsEditProgramOpen] = useState(false);
@@ -103,6 +117,12 @@ export default function ProgramDetailPage({ params }: RouteContext) {
   const [isCancelOpen, setIsCancelOpen] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
 
+  // Course Modal
+  const [isAddCourseOpen, setIsAddCourseOpen] = useState(false);
+  const [courseNameInput, setCourseNameInput] = useState("");
+  const [addCourseLoading, setAddCourseLoading] = useState(false);
+  const [courseError, setCourseError] = useState<string | null>(null);
+
   // Enroll Participant Modal
   const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
   const [enrollForm, setEnrollForm] = useState({
@@ -110,12 +130,44 @@ export default function ProgramDetailPage({ params }: RouteContext) {
     email: "",
     phone: "",
     gender: "",
+    course_id: "",
   });
   const [enrollLoading, setEnrollLoading] = useState(false);
   const [enrollError, setEnrollError] = useState<string | null>(null);
 
   // Bulk Upload Modal
   const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
+
+  // Change Course Modal
+  const [changeCourseTarget, setChangeCourseTarget] = useState<Enrollment | null>(null);
+  const [changeCourseSelectedId, setChangeCourseSelectedId] = useState("");
+  const [changeCourseLoading, setChangeCourseLoading] = useState(false);
+
+  const handleChangeCourseSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!changeCourseTarget) return;
+
+    setChangeCourseLoading(true);
+    try {
+      const res = await fetch(`/api/enrollments/${changeCourseTarget.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ course_id: changeCourseSelectedId || null }),
+      });
+
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error || "Failed to update enrollment course");
+      }
+
+      setChangeCourseTarget(null);
+      await fetchProgramData(true);
+    } catch (err: unknown) {
+      alert((err as { message?: string }).message || "Failed to update course");
+    } finally {
+      setChangeCourseLoading(false);
+    }
+  };
 
   // Update Enrollment Status State
   const [updateEnrollmentTarget, setUpdateEnrollmentTarget] = useState<Enrollment | null>(null);
@@ -126,8 +178,10 @@ export default function ProgramDetailPage({ params }: RouteContext) {
   const [dropTarget, setDropTarget] = useState<Enrollment | null>(null);
   const [dropLoading, setDropLoading] = useState(false);
 
-  const fetchProgramData = async () => {
-    setLoading(true);
+  const fetchProgramData = async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+    }
     setError(null);
     try {
       // 1. Program info
@@ -143,17 +197,22 @@ export default function ProgramDetailPage({ params }: RouteContext) {
         status: progJson.data.status || "active",
       });
 
-      // 2. Enrollments
+      // 2. Courses
+      const courseRes = await fetch(`/api/programs/${id}/courses`);
+      const courseJson = await courseRes.json();
+      if (courseRes.ok) setCourses(courseJson.data || []);
+
+      // 3. Enrollments
       const enrollRes = await fetch(`/api/programs/${id}/enrollments`);
       const enrollJson = await enrollRes.json();
       if (enrollRes.ok) setEnrollments(enrollJson.data || []);
 
-      // 3. Sessions preview
+      // 4. Sessions preview
       const sessionRes = await fetch(`/api/programs/${id}/sessions?include_inactive=true`);
       const sessionJson = await sessionRes.json();
       if (sessionRes.ok) setSessions(sessionJson.data || []);
 
-      // 4. Form template preview
+      // 5. Form template preview
       const formRes = await fetch(`/api/programs/${id}/form-template`);
       const formJson = await formRes.json();
       if (formRes.ok) setFormTemplate(formJson.data || null);
@@ -215,10 +274,59 @@ export default function ProgramDetailPage({ params }: RouteContext) {
     }
   };
 
+  const handleAddCourseSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!courseNameInput.trim()) {
+      setCourseError("Course name is required");
+      return;
+    }
+
+    setAddCourseLoading(true);
+    setCourseError(null);
+
+    try {
+      const res = await fetch(`/api/programs/${id}/courses`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: courseNameInput.trim() }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to create course");
+
+      setIsAddCourseOpen(false);
+      setCourseNameInput("");
+      fetchProgramData();
+    } catch (err: unknown) {
+      setCourseError((err as { message?: string }).message || "Failed to create course");
+    } finally {
+      setAddCourseLoading(false);
+    }
+  };
+
+  const handleDeleteCourse = async (courseId: string, courseName: string) => {
+    if (!confirm(`Are you sure you want to delete course "${courseName}"?`)) return;
+    try {
+      const res = await fetch(`/api/courses/${courseId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error || "Failed to delete course");
+      }
+      fetchProgramData();
+    } catch (err: unknown) {
+      alert((err as { message?: string }).message || "Failed to delete course");
+    }
+  };
+
   const handleEnrollSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!enrollForm.email && !enrollForm.phone) {
       setEnrollError("At least one of email or phone is required");
+      return;
+    }
+
+    if (courses.length > 0 && !enrollForm.course_id) {
+      setEnrollError("Please select a course for this program");
       return;
     }
 
@@ -235,6 +343,7 @@ export default function ProgramDetailPage({ params }: RouteContext) {
           phone: enrollForm.phone || null,
           gender: enrollForm.gender || null,
           program_id: id,
+          ...(enrollForm.course_id ? { course_id: enrollForm.course_id } : {}),
         }),
       });
 
@@ -242,7 +351,7 @@ export default function ProgramDetailPage({ params }: RouteContext) {
       if (!res.ok) throw new Error(json.error || "Failed to enroll participant");
 
       setIsEnrollModalOpen(false);
-      setEnrollForm({ full_name: "", email: "", phone: "", gender: "" });
+      setEnrollForm({ full_name: "", email: "", phone: "", gender: "", course_id: "" });
       fetchProgramData();
     } catch (err: unknown) {
       setEnrollError((err as { message?: string }).message || "Failed to enroll participant");
@@ -370,8 +479,8 @@ export default function ProgramDetailPage({ params }: RouteContext) {
         </div>
       </div>
 
-      {/* Program Dates Overview */}
-      <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs flex items-center space-x-8 text-xs">
+      {/* Program Overview Bar */}
+      <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs flex flex-wrap items-center gap-8 text-xs">
         <div>
           <span className="text-slate-400 font-medium block text-[11px]">Start Date</span>
           <span className="font-medium text-slate-900">
@@ -388,6 +497,12 @@ export default function ProgramDetailPage({ params }: RouteContext) {
           <span className="text-slate-400 font-medium block text-[11px]">Total Enrollments</span>
           <span className="font-semibold text-slate-900">{enrollments.length}</span>
         </div>
+        <div className="border-l border-slate-200 pl-8">
+          <span className="text-slate-400 font-medium block text-[11px]">Courses / Tracks</span>
+          <span className="font-semibold text-slate-900">
+            {courses.length > 0 ? `${courses.length} defined` : "None (Single Program)"}
+          </span>
+        </div>
       </div>
 
       {/* Navigation Tabs */}
@@ -402,6 +517,18 @@ export default function ProgramDetailPage({ params }: RouteContext) {
         >
           <Users className="w-4 h-4" />
           <span>Enrollments ({enrollments.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("courses")}
+          className={`pb-2.5 flex items-center space-x-1.5 border-b-2 transition ${
+            activeTab === "courses"
+              ? "border-teal-700 text-teal-700 font-semibold"
+              : "border-transparent text-slate-500 hover:text-slate-900"
+          }`}
+        >
+          <BookOpen className="w-4 h-4" />
+          <span>Courses / Tracks ({courses.length})</span>
         </button>
 
         <button
@@ -470,6 +597,7 @@ export default function ProgramDetailPage({ params }: RouteContext) {
                     <tr>
                       <th className="py-2.5 px-4">Participant Name</th>
                       <th className="py-2.5 px-4">Email</th>
+                      {courses.length > 0 && <th className="py-2.5 px-4">Course / Track</th>}
                       <th className="py-2.5 px-4">Status</th>
                       <th className="py-2.5 px-4">Enrolled Date</th>
                       <th className="py-2.5 px-4 text-right">Actions</th>
@@ -487,6 +615,17 @@ export default function ProgramDetailPage({ params }: RouteContext) {
                           </Link>
                         </td>
                         <td className="py-2.5 px-4 text-slate-600">{en.participant.email || "—"}</td>
+                        {courses.length > 0 && (
+                          <td className="py-2.5 px-4">
+                            {en.course?.name ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200 font-medium text-[11px]">
+                                {en.course.name}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 italic">Unassigned</span>
+                            )}
+                          </td>
+                        )}
                         <td className="py-2.5 px-4">
                           <StatusBadge status={en.status} />
                         </td>
@@ -496,6 +635,17 @@ export default function ProgramDetailPage({ params }: RouteContext) {
                         <td className="py-2.5 px-4 text-right space-x-2">
                           {isAssigned && (
                             <>
+                              {courses.length > 0 && (
+                                <button
+                                  onClick={() => {
+                                    setChangeCourseTarget(en);
+                                    setChangeCourseSelectedId(en.course?.id || "");
+                                  }}
+                                  className="px-2 py-1 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded text-[11px] font-medium transition"
+                                >
+                                  Change Course
+                                </button>
+                              )}
                               <button
                                 onClick={() => {
                                   setUpdateEnrollmentTarget(en);
@@ -527,14 +677,81 @@ export default function ProgramDetailPage({ params }: RouteContext) {
         </div>
       )}
 
-      {/* TAB 2: SESSIONS PREVIEW */}
+      {/* TAB 2: COURSES / TRACKS */}
+      {activeTab === "courses" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Courses / Tracks
+            </h3>
+
+            {isAdmin && (
+              <button
+                onClick={() => setIsAddCourseOpen(true)}
+                className="px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white text-xs font-medium rounded-md transition flex items-center space-x-1.5 shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Course</span>
+              </button>
+            )}
+          </div>
+
+          <div className="bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden">
+            {courses.length === 0 ? (
+              <div className="p-8 text-center text-xs text-slate-500">
+                No courses or tracks defined for this program. (All participants enroll directly in the program).
+              </div>
+            ) : (
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold uppercase tracking-wider text-[11px]">
+                  <tr>
+                    <th className="py-2.5 px-4">Course / Track Name</th>
+                    <th className="py-2.5 px-4">Created Date</th>
+                    <th className="py-2.5 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {courses.map((c) => (
+                    <tr key={c.id} className="hover:bg-slate-50 transition">
+                      <td className="py-2.5 px-4 font-bold text-slate-900">
+                        <Link
+                          href={`/programs/${program.id}/courses/${c.id}`}
+                          className="hover:text-teal-700 hover:underline"
+                        >
+                          {c.name}
+                        </Link>
+                      </td>
+                      <td className="py-2.5 px-4 text-slate-600">
+                        {new Date(c.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="py-2.5 px-4 text-right">
+                        {isAdmin && (
+                          <button
+                            onClick={() => handleDeleteCourse(c.id, c.name)}
+                            className="p-1 text-slate-400 hover:text-rose-600 inline-block"
+                            title="Delete Course"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: SESSIONS PREVIEW */}
       {activeTab === "sessions" && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
               Program Sessions
             </h3>
-            <span className="text-xs text-slate-500">Full attendance marking available in Phase 8</span>
+            <span className="text-xs text-slate-500">Attendance records operate at program level</span>
           </div>
 
           <div className="bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden">
@@ -578,14 +795,13 @@ export default function ProgramDetailPage({ params }: RouteContext) {
         </div>
       )}
 
-      {/* TAB 3: INTAKE FORM TEMPLATE PREVIEW */}
+      {/* TAB 4: INTAKE FORM TEMPLATE PREVIEW */}
       {activeTab === "form-template" && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
               Intake Form Template Preview
             </h3>
-            <span className="text-xs text-slate-500">Form builder UI available in Phase 8</span>
           </div>
 
           <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-xs space-y-4 text-xs">
@@ -596,7 +812,6 @@ export default function ProgramDetailPage({ params }: RouteContext) {
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center space-x-2">
-                  <CheckCircle2 className="w-4 h-4 text-teal-700" />
                   <span className="font-bold text-slate-900">{formTemplate.name}</span>
                 </div>
 
@@ -728,6 +943,50 @@ export default function ProgramDetailPage({ params }: RouteContext) {
         confirmLabel="Cancel Program"
       />
 
+      {/* Add Course Modal */}
+      <Modal isOpen={isAddCourseOpen} onClose={() => setIsAddCourseOpen(false)} title="Add Course / Track">
+        <form onSubmit={handleAddCourseSubmit} className="space-y-4">
+          {courseError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-md flex items-center space-x-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{courseError}</span>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1">
+              Course / Track Name <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={courseNameInput}
+              onChange={(e) => setCourseNameInput(e.target.value)}
+              placeholder="e.g. Data Analytics, Web Development, UI/UX Design"
+              className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+            />
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setIsAddCourseOpen(false)}
+              className="px-3.5 py-1.5 rounded-md text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={addCourseLoading}
+              className="px-4 py-1.5 rounded-md text-xs font-medium bg-teal-700 hover:bg-teal-800 text-white transition disabled:opacity-50 flex items-center space-x-1.5"
+            >
+              {addCourseLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+              <span>Save Course</span>
+            </button>
+          </div>
+        </form>
+      </Modal>
+
       {/* Enroll Participant Modal */}
       <Modal isOpen={isEnrollModalOpen} onClose={() => setIsEnrollModalOpen(false)} title="Enroll Participant">
         <form onSubmit={handleEnrollSubmit} className="space-y-4">
@@ -788,6 +1047,27 @@ export default function ProgramDetailPage({ params }: RouteContext) {
               <option value="other">Other</option>
             </select>
           </div>
+
+          {courses.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Course / Track <span className="text-rose-500">*</span>
+              </label>
+              <select
+                required
+                value={enrollForm.course_id}
+                onChange={(e) => setEnrollForm({ ...enrollForm, course_id: e.target.value })}
+                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+              >
+                <option value="">Select Course / Track</option>
+                {courses.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="flex justify-end space-x-2 pt-3 border-t border-slate-100">
             <button
@@ -862,13 +1142,58 @@ export default function ProgramDetailPage({ params }: RouteContext) {
         confirmLabel="Drop Enrollment"
       />
 
+      {/* Change Course Modal */}
+      <Modal
+        isOpen={Boolean(changeCourseTarget)}
+        onClose={() => setChangeCourseTarget(null)}
+        title={`Change Course Assignment — ${changeCourseTarget?.participant.full_name}`}
+      >
+        <form onSubmit={handleChangeCourseSubmit} className="space-y-4 text-xs">
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1">
+              Select Course / Track
+            </label>
+            <select
+              value={changeCourseSelectedId}
+              onChange={(e) => setChangeCourseSelectedId(e.target.value)}
+              className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+            >
+              <option value="">Unassigned (No course/track selected)</option>
+              {courses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setChangeCourseTarget(null)}
+              className="px-3.5 py-1.5 rounded-md text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={changeCourseLoading}
+              className="px-4 py-1.5 rounded-md text-xs font-medium bg-teal-700 hover:bg-teal-800 text-white transition disabled:opacity-50 flex items-center space-x-1.5"
+            >
+              {changeCourseLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+              <span>Save Assignment</span>
+            </button>
+          </div>
+        </form>
+      </Modal>
+
       {/* Bulk Upload Modal */}
       <BulkUploadModal
         isOpen={isBulkUploadOpen}
         onClose={() => setIsBulkUploadOpen(false)}
         programId={program.id}
         programName={program.name}
-        onSuccess={fetchProgramData}
+        onSuccess={() => fetchProgramData(true)}
       />
     </div>
   );

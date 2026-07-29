@@ -94,6 +94,9 @@ async function main() {
     // Create existing participant to test email deduplication
     const existingParticipant = await prisma.participant.create({
       data: {
+        first_name: "Pre-existing",
+        last_name: "Participant",
+        nin_number: "NIN-TEST",
         full_name: "Pre-existing Participant",
         email: `preexisting-${tag}@example.com`,
         phone: `+23499${Date.now().toString().slice(-8)}`,

@@ -180,7 +180,9 @@ async function main() {
     console.log("--- Test 4: Enrollment Integration Surfaces has_intake_form ---");
     const enrollResult = await createOrEnrollParticipant(
       {
-        full_name: "Intake Test Participant",
+        first_name: "Intake Test",
+        last_name: "Participant",
+        nin_number: "NIN-TEST",
         email: `intake-${tag}@example.com`,
       },
       programA.id
@@ -265,7 +267,7 @@ async function main() {
     console.log("--- Test 8: Facilitator Submitting Response for Unassigned Program Enrollment Returns 403 ---");
     // Create enrollment in unassigned Program B
     const partUnassigned = await prisma.participant.create({
-      data: { full_name: "Unassigned Participant", email: `unassigned-${tag}@example.com` },
+      data: { first_name: "Unassigned", last_name: "Participant", nin_number: "NIN-TEST", full_name: "Unassigned Participant", email: `unassigned-${tag}@example.com` },
     });
     createdParticipantIds.push(partUnassigned.id);
 

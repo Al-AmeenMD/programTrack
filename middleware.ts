@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 const JWT_SECRET = process.env.JWT_SECRET || "programtrack-super-secret-jwt-key-2026-development-hub";
 
 export async function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl;
+  const { pathname, searchParams } = req.nextUrl;
 
   // Allow static files, Next internal routes, public assets
   if (
@@ -17,12 +17,14 @@ export async function middleware(req: NextRequest) {
 
   const sessionCookie = req.cookies.get("programtrack_session");
   let isAuthenticated = false;
+  let userRole: string | null = null;
 
   if (sessionCookie?.value) {
     try {
       const secretKey = new TextEncoder().encode(JWT_SECRET);
-      await jwtVerify(sessionCookie.value, secretKey);
+      const { payload } = await jwtVerify(sessionCookie.value, secretKey);
       isAuthenticated = true;
+      userRole = (payload.role as string) || null;
     } catch {
       isAuthenticated = false;
     }
@@ -34,6 +36,13 @@ export async function middleware(req: NextRequest) {
   // Allow login API routes
   if (isApiAuthRoute) {
     return NextResponse.next();
+  }
+
+  // If visiting /login with explicit logout/clear/unauthorized query param, clear cookie and stay on login
+  if (isLoginPage && (searchParams.has("logout") || searchParams.has("clear") || searchParams.has("unauthorized"))) {
+    const response = NextResponse.next();
+    response.cookies.delete("programtrack_session");
+    return response;
   }
 
   // If authenticated and visiting /login, redirect to /programs
@@ -54,6 +63,15 @@ export async function middleware(req: NextRequest) {
       response.cookies.delete("programtrack_session");
     }
     return response;
+  }
+
+  // Edge RBAC check for admin-only staff routes (/staff, /api/staff)
+  const isAdminRoute = pathname.startsWith("/staff") || pathname.startsWith("/api/staff");
+  if (isAdminRoute && userRole !== "admin") {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 });
+    }
+    return NextResponse.redirect(new URL("/programs", req.url));
   }
 
   return NextResponse.next();

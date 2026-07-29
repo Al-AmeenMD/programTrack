@@ -27,6 +27,11 @@ enum EnrollmentStatus {
 
 model Participant {
   id            String            @id @default(uuid()) @db.Uuid
+  first_name    String
+  middle_name   String?
+  last_name     String
+  nin_number    String
+  qualification String?
   full_name     String
   email         String?           @unique
   phone         String?           @unique
@@ -57,14 +62,29 @@ model Program {
   program_staff  ProgramStaff[]
   sessions       Session[]
   form_templates FormTemplate[]
+  courses        Course[]
 
   @@map("programs")
+}
+
+model Course {
+  id         String   @id @default(uuid()) @db.Uuid
+  program_id String   @db.Uuid
+  name       String
+  created_at DateTime @default(now())
+
+  program               Program             @relation(fields: [program_id], references: [id], onDelete: Restrict)
+  enrollments           Enrollment[]
+  facilitator_courses   FacilitatorCourse[]
+
+  @@map("courses")
 }
 
 model Enrollment {
   id             String           @id @default(uuid()) @db.Uuid
   participant_id String           @db.Uuid
   program_id     String           @db.Uuid
+  course_id      String?          @db.Uuid
   status         EnrollmentStatus @default(registered)
   metadata       Json             @default("{}")
   enrolled_at    DateTime         @default(now())
@@ -73,6 +93,7 @@ model Enrollment {
 
   participant    Participant      @relation(fields: [participant_id], references: [id], onDelete: Restrict)
   program        Program          @relation(fields: [program_id], references: [id], onDelete: Restrict)
+  course         Course?          @relation(fields: [course_id], references: [id], onDelete: SetNull)
   attendance_records AttendanceRecord[]
   form_responses FormResponse[]
   certificate    Certificate?
@@ -84,6 +105,11 @@ model Enrollment {
 enum StaffRole {
   admin
   facilitator
+}
+
+enum StaffStatus {
+  active
+  inactive
 }
 
 enum AttendanceStatus {
@@ -103,6 +129,7 @@ model StaffUser {
   email         String             @unique
   password_hash String
   role          StaffRole
+  status        StaffStatus        @default(active)
   created_at    DateTime           @default(now())
   updated_at    DateTime           @updatedAt
 
@@ -113,15 +140,28 @@ model StaffUser {
 }
 
 model ProgramStaff {
-  id            String    @id @default(uuid()) @db.Uuid
-  staff_user_id String    @db.Uuid
-  program_id    String    @db.Uuid
+  id            String              @id @default(uuid()) @db.Uuid
+  staff_user_id String              @db.Uuid
+  program_id    String              @db.Uuid
 
-  staff_user    StaffUser @relation(fields: [staff_user_id], references: [id], onDelete: Restrict)
-  program       Program   @relation(fields: [program_id], references: [id], onDelete: Restrict)
+  staff_user    StaffUser           @relation(fields: [staff_user_id], references: [id], onDelete: Restrict)
+  program       Program             @relation(fields: [program_id], references: [id], onDelete: Restrict)
+  courses       FacilitatorCourse[]
 
   @@unique([staff_user_id, program_id])
   @@map("program_staff")
+}
+
+model FacilitatorCourse {
+  id               String       @id @default(uuid()) @db.Uuid
+  program_staff_id String       @db.Uuid
+  course_id        String       @db.Uuid
+
+  program_staff    ProgramStaff @relation(fields: [program_staff_id], references: [id], onDelete: Cascade)
+  course           Course       @relation(fields: [course_id], references: [id], onDelete: Cascade)
+
+  @@unique([program_staff_id, course_id])
+  @@map("facilitator_courses")
 }
 
 model Session {

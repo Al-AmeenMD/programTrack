@@ -63,3 +63,28 @@ export async function POST(req: NextRequest, context: RouteContext) {
     return handleApiError(error);
   }
 }
+
+export async function DELETE(req: NextRequest, context: RouteContext) {
+  try {
+    await requireRole("admin", req);
+    const { id: staff_user_id } = await context.params;
+
+    const { searchParams } = new URL(req.url);
+    const program_id = searchParams.get("program_id");
+
+    if (!program_id) {
+      return NextResponse.json({ error: "program_id query parameter is required" }, { status: 400 });
+    }
+
+    await prisma.programStaff.deleteMany({
+      where: {
+        staff_user_id,
+        program_id,
+      },
+    });
+
+    return NextResponse.json({ data: { message: "Program unassigned successfully" } });
+  } catch (error) {
+    return handleApiError(error);
+  }
+}

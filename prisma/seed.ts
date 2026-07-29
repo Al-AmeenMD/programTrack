@@ -61,6 +61,9 @@ async function main() {
     prisma.participant.upsert({
       where: { email: "amina.yusuf@example.com" },
       update: {
+        first_name: "Amina",
+        last_name: "Yusuf",
+        nin_number: "NIN-10000000001",
         full_name: "Amina Yusuf",
         phone: "+2348010000001",
         gender: "female",
@@ -68,6 +71,9 @@ async function main() {
         status: "active",
       },
       create: {
+        first_name: "Amina",
+        last_name: "Yusuf",
+        nin_number: "NIN-10000000001",
         full_name: "Amina Yusuf",
         email: "amina.yusuf@example.com",
         phone: "+2348010000001",
@@ -78,6 +84,9 @@ async function main() {
     prisma.participant.upsert({
       where: { email: "musa.bello@example.com" },
       update: {
+        first_name: "Musa",
+        last_name: "Bello",
+        nin_number: "NIN-10000000002",
         full_name: "Musa Bello",
         phone: "+2348010000002",
         gender: "male",
@@ -85,6 +94,9 @@ async function main() {
         status: "active",
       },
       create: {
+        first_name: "Musa",
+        last_name: "Bello",
+        nin_number: "NIN-10000000002",
         full_name: "Musa Bello",
         email: "musa.bello@example.com",
         phone: "+2348010000002",
@@ -95,12 +107,18 @@ async function main() {
     prisma.participant.upsert({
       where: { email: "zainab.ali@example.com" },
       update: {
+        first_name: "Zainab",
+        last_name: "Ali",
+        nin_number: "NIN-10000000003",
         full_name: "Zainab Ali",
         phone: "+2348010000003",
         gender: "female",
         status: "active",
       },
       create: {
+        first_name: "Zainab",
+        last_name: "Ali",
+        nin_number: "NIN-10000000003",
         full_name: "Zainab Ali",
         email: "zainab.ali@example.com",
         phone: "+2348010000003",
@@ -110,12 +128,18 @@ async function main() {
     prisma.participant.upsert({
       where: { phone: "+2348010000004" },
       update: {
+        first_name: "Chinedu",
+        last_name: "Okafor",
+        nin_number: "NIN-10000000004",
         full_name: "Chinedu Okafor",
         email: null,
         gender: "male",
         status: "active",
       },
       create: {
+        first_name: "Chinedu",
+        last_name: "Okafor",
+        nin_number: "NIN-10000000004",
         full_name: "Chinedu Okafor",
         email: null,
         phone: "+2348010000004",
@@ -125,12 +149,18 @@ async function main() {
     prisma.participant.upsert({
       where: { phone: "+2348010000005" },
       update: {
+        first_name: "Fatima",
+        last_name: "Sani",
+        nin_number: "NIN-10000000005",
         full_name: "Fatima Sani",
         email: null,
         gender: "female",
         status: "active",
       },
       create: {
+        first_name: "Fatima",
+        last_name: "Sani",
+        nin_number: "NIN-10000000005",
         full_name: "Fatima Sani",
         email: null,
         phone: "+2348010000005",

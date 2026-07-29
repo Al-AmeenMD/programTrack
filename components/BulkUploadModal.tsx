@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Upload, FileText, CheckCircle2, AlertCircle, RefreshCw, X } from "lucide-react";
+import { Upload, FileText, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
 import { Modal } from "./ui/Dialog";
 
 type BulkUploadModalProps = {
@@ -19,6 +19,7 @@ type PreviewRow = {
   phone: string | null;
   gender: string | null;
   date_of_birth: string | null;
+  course_name?: string | null;
   action: "new_participant" | "new_enrollment" | "skip";
   skip_reason: string | null;
 };
@@ -144,6 +145,8 @@ export function BulkUploadModal({
     }
   };
 
+  const hasCourseColumn = preview?.rows.some((r) => r.course_name);
+
   return (
     <Modal
       isOpen={isOpen}
@@ -152,6 +155,24 @@ export function BulkUploadModal({
       maxWidth="2xl"
     >
       <div className="space-y-4">
+        {/* Step Progress Bar */}
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-2 text-xs">
+          <div className={`flex items-center space-x-1.5 ${step === "file" ? "text-teal-700 font-semibold" : "text-slate-500"}`}>
+            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${step === "file" ? "bg-teal-100 text-teal-800 font-bold" : "bg-slate-100 text-slate-600"}`}>1</span>
+            <span>Select File</span>
+          </div>
+          <div className="h-px bg-slate-200 flex-1 mx-2"></div>
+          <div className={`flex items-center space-x-1.5 ${step === "preview" ? "text-teal-700 font-semibold" : "text-slate-500"}`}>
+            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${step === "preview" ? "bg-teal-100 text-teal-800 font-bold" : "bg-slate-100 text-slate-600"}`}>2</span>
+            <span>Preview Dry Run</span>
+          </div>
+          <div className="h-px bg-slate-200 flex-1 mx-2"></div>
+          <div className={`flex items-center space-x-1.5 ${step === "results" ? "text-emerald-700 font-semibold" : "text-slate-500"}`}>
+            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${step === "results" ? "bg-emerald-100 text-emerald-800 font-bold" : "bg-slate-100 text-slate-600"}`}>3</span>
+            <span>Results Summary</span>
+          </div>
+        </div>
+
         {error && (
           <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-md flex items-center space-x-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
@@ -164,8 +185,8 @@ export function BulkUploadModal({
           <div className="space-y-4">
             <p className="text-xs text-slate-600">
               Select a CSV file containing participant records. Expected headers:{" "}
-              <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800 font-mono">
-                full_name, email, phone, gender, date_of_birth
+              <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800 font-mono text-[11px] block mt-1 break-all">
+                first_name, middle_name, last_name, nin_number, qualification, email, phone, gender, date_of_birth, course_name
               </code>
             </p>
 
@@ -250,6 +271,7 @@ export function BulkUploadModal({
                     <th className="py-2 px-3">Row</th>
                     <th className="py-2 px-3">Name</th>
                     <th className="py-2 px-3">Contact</th>
+                    {hasCourseColumn && <th className="py-2 px-3">Course / Track</th>}
                     <th className="py-2 px-3">Action Preview</th>
                     <th className="py-2 px-3">Reason / Details</th>
                   </tr>
@@ -264,6 +286,11 @@ export function BulkUploadModal({
                       <td className="py-2 px-3 text-slate-600">
                         {r.email || r.phone || "—"}
                       </td>
+                      {hasCourseColumn && (
+                        <td className="py-2 px-3 text-slate-700 font-medium">
+                          {r.course_name || "—"}
+                        </td>
+                      )}
                       <td className="py-2 px-3">
                         {r.action === "new_participant" && (
                           <span className="px-1.5 py-0.5 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-800">
@@ -326,11 +353,37 @@ export function BulkUploadModal({
             <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-md text-emerald-800 flex items-center space-x-2">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
               <div>
-                <span className="font-semibold">Import Complete!</span>
-                <p className="text-[11px] text-emerald-700">
+                <span className="font-semibold text-sm">Import Complete!</span>
+                <p className="text-xs text-emerald-700 mt-0.5">
                   Processed {results.total} rows ({results.created_count} new participants created,{" "}
                   {results.enrolled_count} existing matched and enrolled).
                 </p>
+              </div>
+            </div>
+
+            {/* Summary Cards */}
+            <div className="grid grid-cols-4 gap-2 text-center text-xs">
+              <div className="p-2.5 bg-slate-100 rounded border border-slate-200">
+                <span className="block text-slate-500 font-medium">Total Processed</span>
+                <span className="text-sm font-bold text-slate-900">{results.total}</span>
+              </div>
+              <div className="p-2.5 bg-emerald-50 rounded border border-emerald-200">
+                <span className="block text-emerald-700 font-medium">Created</span>
+                <span className="text-sm font-bold text-emerald-800">
+                  {results.created_count}
+                </span>
+              </div>
+              <div className="p-2.5 bg-sky-50 rounded border border-sky-200">
+                <span className="block text-sky-700 font-medium">Matched & Enrolled</span>
+                <span className="text-sm font-bold text-sky-800">
+                  {results.enrolled_count}
+                </span>
+              </div>
+              <div className="p-2.5 bg-amber-50 rounded border border-amber-200">
+                <span className="block text-amber-700 font-medium">Skipped</span>
+                <span className="text-sm font-bold text-amber-800">
+                  {results.skipped_count}
+                </span>
               </div>
             </div>
 
@@ -339,7 +392,7 @@ export function BulkUploadModal({
                 <h4 className="font-semibold text-slate-700">Skipped Rows Breakdown:</h4>
                 <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-md">
                   <table className="w-full text-left">
-                    <thead className="bg-slate-100 border-b border-slate-200 text-slate-600">
+                    <thead className="bg-slate-100 border-b border-slate-200 text-slate-600 sticky top-0">
                       <tr>
                         <th className="py-1.5 px-3">Row</th>
                         <th className="py-1.5 px-3">Name</th>
@@ -348,7 +401,7 @@ export function BulkUploadModal({
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {results.skipped_details.map((s, idx) => (
-                        <tr key={idx}>
+                        <tr key={idx} className="hover:bg-slate-50">
                           <td className="py-1.5 px-3 font-mono text-slate-500">{s.row_number}</td>
                           <td className="py-1.5 px-3 font-medium text-slate-800">
                             {s.full_name || "—"}

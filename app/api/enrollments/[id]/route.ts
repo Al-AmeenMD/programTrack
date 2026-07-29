@@ -45,6 +45,9 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       where: { id },
       data: {
         ...(body.status !== undefined && { status: body.status }),
+        ...(body.course_id !== undefined && {
+          course_id: body.course_id ? body.course_id : null,
+        }),
         ...(body.metadata !== undefined && {
           metadata: body.metadata as Prisma.InputJsonValue,
         }),
@@ -52,6 +55,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       include: {
         participant: true,
         program: true,
+        course: true,
       },
     });
 

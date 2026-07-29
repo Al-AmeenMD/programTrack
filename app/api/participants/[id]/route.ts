@@ -77,10 +77,25 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     const body = updateParticipantSchema.parse(await req.json());
 
+    const existing = await prisma.participant.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: "Participant not found" }, { status: 404 });
+    }
+
+    const firstName = body.first_name !== undefined ? body.first_name : existing.first_name;
+    const middleName = body.middle_name !== undefined ? body.middle_name : existing.middle_name;
+    const lastName = body.last_name !== undefined ? body.last_name : existing.last_name;
+    const fullName = [firstName, middleName, lastName].filter(Boolean).join(" ");
+
     const participant = await prisma.participant.update({
       where: { id },
       data: {
-        ...(body.full_name !== undefined && { full_name: body.full_name }),
+        first_name: firstName,
+        middle_name: middleName,
+        last_name: lastName,
+        full_name: fullName,
+        ...(body.nin_number !== undefined && { nin_number: body.nin_number }),
+        ...(body.qualification !== undefined && { qualification: body.qualification }),
         ...(body.email !== undefined && { email: body.email }),
         ...(body.phone !== undefined && { phone: body.phone }),
         ...(body.gender !== undefined && { gender: body.gender }),

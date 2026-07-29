@@ -42,7 +42,9 @@ async function main() {
 
     const first = await createOrEnrollParticipant(
       {
-        full_name: "Phase Two Tester",
+        first_name: "Phase",
+        last_name: "Two Tester",
+        nin_number: "NIN-TEST-PH2",
         email,
         phone: `+2349${Date.now().toString().slice(-9)}`,
         metadata: { source: tag },
@@ -55,7 +57,9 @@ async function main() {
 
     const second = await createOrEnrollParticipant(
       {
-        full_name: "Should Reuse Existing",
+        first_name: "Should Reuse",
+        last_name: "Existing",
+        nin_number: "NIN-TEST-PH2",
         email,
         metadata: { source: tag },
       },
@@ -68,7 +72,9 @@ async function main() {
 
     const third = await createOrEnrollParticipant(
       {
-        full_name: "Already Enrolled Check",
+        first_name: "Already Enrolled",
+        last_name: "Check",
+        nin_number: "NIN-TEST-PH2",
         email,
         metadata: { source: tag },
       },
@@ -114,6 +120,9 @@ async function main() {
     try {
       await prisma.participant.create({
         data: {
+          first_name: "Duplicate",
+          last_name: "Email Check",
+          nin_number: "NIN-TEST",
           full_name: "Duplicate Email Check",
           email,
         },
@@ -125,6 +134,9 @@ async function main() {
 
     const nullEmailA = await prisma.participant.create({
       data: {
+        first_name: "Null",
+        last_name: "Email A",
+        nin_number: "NIN-TEST-A",
         full_name: "Null Email A",
         phone: `+2348${Date.now().toString().slice(-9)}`,
         email: null,
@@ -133,6 +145,9 @@ async function main() {
     });
     const nullEmailB = await prisma.participant.create({
       data: {
+        first_name: "Null",
+        last_name: "Email B",
+        nin_number: "NIN-TEST-B",
         full_name: "Null Email B",
         phone: `+2347${Date.now().toString().slice(-9)}`,
         email: null,
@@ -176,6 +191,9 @@ async function main() {
 
     const tempParticipant = await prisma.participant.create({
       data: {
+        first_name: "Temp",
+        last_name: "Participant",
+        nin_number: "NIN-TEMP",
         full_name: "Temp Participant",
         email: `temp-${tag}@example.com`,
       },

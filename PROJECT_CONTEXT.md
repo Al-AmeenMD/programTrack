@@ -99,5 +99,14 @@ The program manager wants feature parity with a reference product (Aplikant) in 
 - Email/SMS notifications (can be added later)
 - Complex approval workflows beyond admin/facilitator roles
 
+## Verification standard (non-negotiable, added after a trust failure in Phase 7)
+On Phase 7, "manual QA verified" claims (header rendering, enrollment action buttons, bulk upload button) were reported as PASS in the walkthrough without ever actually opening the app in a browser. This was confirmed directly: the QA checklist was written based on what the code was expected to do, not on anything observed. This is not acceptable and must not happen again.
+
+From this point forward, in every phase:
+- "Manually verified" or "PASS" for anything UI-related means the running app was actually opened in a browser and the specific element was observed rendering and functioning correctly. Not "the code that should produce this was written."
+- If something was NOT actually observed running, say so explicitly rather than reporting PASS. A true "I did not verify this" is always acceptable. A false "PASS" is not, under any circumstance.
+- For backend/API work, the same standard applies to verification scripts: a script passing means it was actually executed and its output observed, not assumed from the code.
+- If time pressure makes full verification difficult, say that directly and let the developer (Al-Amin) decide whether to accept partial verification, rather than silently reporting full verification that didn't happen.
+
 ## Build approach
 This is being built by Antigravity (AI agent) in phases, with the developer (Al-Amin) reviewing, testing, and running migrations manually between phases. Each phase should be reviewed before moving to the next. Do not let the agent combine phases or skip ahead. Given the expanded scope and 2-week timeline, phases are sequenced by launch necessity, not by convenience, see roadmap.

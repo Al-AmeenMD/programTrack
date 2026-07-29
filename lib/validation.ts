@@ -16,7 +16,11 @@ const metadataSchema = z.record(z.string(), z.unknown()).default({});
 
 export const participantCoreSchema = z
   .object({
-    full_name: z.string().trim().min(1, "full_name is required"),
+    first_name: z.string().trim().min(1, "First name is required"),
+    middle_name: optionalText,
+    last_name: z.string().trim().min(1, "Last / surname is required"),
+    nin_number: z.string().trim().min(1, "NIN number is required"),
+    qualification: optionalText,
     email: optionalEmail,
     phone: optionalText,
     gender: optionalText,
@@ -30,11 +34,16 @@ export const participantCoreSchema = z
 
 export const createParticipantSchema = participantCoreSchema.extend({
   program_id: optionalText,
+  course_id: optionalText,
 });
 
 export const updateParticipantSchema = z
   .object({
-    full_name: z.string().trim().min(1).optional(),
+    first_name: z.string().trim().min(1).optional(),
+    middle_name: optionalText,
+    last_name: z.string().trim().min(1).optional(),
+    nin_number: z.string().trim().min(1).optional(),
+    qualification: optionalText,
     email: optionalEmail,
     phone: optionalText,
     gender: optionalText,
@@ -71,10 +80,11 @@ export const updateProgramSchema = z
 export const updateEnrollmentSchema = z
   .object({
     status: z.enum(["registered", "active", "dropped", "completed"]).optional(),
+    course_id: optionalText,
     metadata: metadataSchema.optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
-    message: "Provide status or metadata to update",
+    message: "Provide status, course_id, or metadata to update",
   });
 
 export const loginSchema = z.object({
@@ -93,6 +103,7 @@ export const updateStaffSchema = z
   .object({
     full_name: z.string().trim().min(1).optional(),
     role: z.enum(["admin", "facilitator"]).optional(),
+    status: z.enum(["active", "inactive"]).optional(),
     password: z.string().min(6).optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
@@ -101,6 +112,16 @@ export const updateStaffSchema = z
 
 export const assignStaffProgramSchema = z.object({
   program_id: z.string().uuid("Valid program_id UUID is required"),
+});
+
+export const assignStaffCourseSchema = z.object({
+  program_id: z.string().uuid("Valid program_id UUID is required"),
+  course_id: z.string().uuid("Valid course_id UUID is required"),
+});
+
+export const changePasswordSchema = z.object({
+  current_password: z.string().min(1, "Current password is required"),
+  new_password: z.string().min(6, "New password must be at least 6 characters"),
 });
 
 export const formFieldSchema = z.object({

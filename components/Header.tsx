@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, Layers, Users } from "lucide-react";
+import { LogOut, Layers, Users, ShieldCheck, Settings } from "lucide-react";
 import { useAuth } from "./AuthProvider";
 
 export function Header() {
@@ -18,7 +18,7 @@ export function Header() {
   return (
     <header className="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-        <div className="flex items-center space-x-8">
+        <div className="flex items-center space-x-6">
           <Link href="/programs" className="flex items-center space-x-2.5 group">
             <div className="w-8 h-8 rounded bg-teal-700 flex items-center justify-center font-bold text-white text-sm tracking-wider group-hover:bg-teal-600 transition">
               PT
@@ -51,6 +51,32 @@ export function Header() {
             >
               <Users className="w-4 h-4" />
               <span>Participants</span>
+            </Link>
+
+            {user.role === "admin" && (
+              <Link
+                href="/staff"
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition flex items-center space-x-1.5 ${
+                  isActive("/staff")
+                    ? "bg-slate-800 text-teal-400"
+                    : "text-slate-300 hover:bg-slate-800/60 hover:text-white"
+                }`}
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>Staff Accounts</span>
+              </Link>
+            )}
+
+            <Link
+              href="/settings"
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition flex items-center space-x-1.5 ${
+                isActive("/settings")
+                  ? "bg-slate-800 text-teal-400"
+                  : "text-slate-300 hover:bg-slate-800/60 hover:text-white"
+              }`}
+            >
+              <Settings className="w-4 h-4" />
+              <span>Settings</span>
             </Link>
           </nav>
         </div>

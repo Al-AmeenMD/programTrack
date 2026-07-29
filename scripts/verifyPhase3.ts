@@ -143,7 +143,7 @@ async function main() {
 
     // Create Participant 1 in Program A (Assigned)
     const part1 = await prisma.participant.create({
-      data: { full_name: "Assigned Participant Only", email: `part1-${tag}@example.com` },
+      data: { first_name: "Assigned", last_name: "Participant Only", nin_number: "NIN-TEST", full_name: "Assigned Participant Only", email: `part1-${tag}@example.com` },
     });
     createdParticipantIds.push(part1.id);
     const enroll1 = await prisma.enrollment.create({
@@ -153,7 +153,7 @@ async function main() {
 
     // Create Participant 2 in Program B (Unassigned)
     const part2 = await prisma.participant.create({
-      data: { full_name: "Unassigned Participant Only", email: `part2-${tag}@example.com` },
+      data: { first_name: "Unassigned", last_name: "Participant Only", nin_number: "NIN-TEST", full_name: "Unassigned Participant Only", email: `part2-${tag}@example.com` },
     });
     createdParticipantIds.push(part2.id);
     const enroll2 = await prisma.enrollment.create({
@@ -163,7 +163,7 @@ async function main() {
 
     // Create Dual-Enrolled Participant 3 (In BOTH Program A and Program B)
     const partDual = await prisma.participant.create({
-      data: { full_name: "Dual Enrolled Participant", email: `partdual-${tag}@example.com` },
+      data: { first_name: "Dual", last_name: "Enrolled Participant", nin_number: "NIN-TEST", full_name: "Dual Enrolled Participant", email: `partdual-${tag}@example.com` },
     });
     createdParticipantIds.push(partDual.id);
 
