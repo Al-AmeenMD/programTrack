@@ -13,14 +13,17 @@ export function Header() {
     return null;
   }
 
-  const isActive = (path: string) => pathname.startsWith(path);
+  const isActive = (path: string) =>
+    path === "/home" ? pathname === "/home" : pathname.startsWith(path);
 
   return (
     <header className="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
         <div className="flex items-center space-x-6">
-          <Link href="/programs" className="flex items-center space-x-2.5 group">
-            <div className="w-8 h-8 rounded bg-teal-700 flex items-center justify-center font-bold text-white text-sm tracking-wider group-hover:bg-teal-600 transition">
+          <Link href="/home" className="flex items-center space-x-2.5 group">
+            <div className={`w-8 h-8 rounded flex items-center justify-center font-bold text-white text-sm tracking-wider transition ${
+              isActive("/home") ? "bg-teal-500" : "bg-teal-700 group-hover:bg-teal-600"
+            }`}>
               PT
             </div>
             <span className="font-semibold text-base tracking-tight text-slate-100">

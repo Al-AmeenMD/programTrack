@@ -38,7 +38,7 @@ export default function LoginPage() {
       }
 
       await refreshUser();
-      router.push("/programs");
+      router.push("/home");
       router.refresh();
     } catch (err: unknown) {
       setError((err as { message?: string }).message || "Authentication failed");
@@ -55,7 +55,7 @@ export default function LoginPage() {
             PT
           </div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-            ProgramTrack Staff Login
+            ProgramTrack
           </h1>
           <p className="text-xs text-slate-500">
             Internal operations and program management system
@@ -87,7 +87,7 @@ export default function LoginPage() {
                       e.currentTarget.form?.requestSubmit();
                     }
                   }}
-                  placeholder="staff@developmenthub.org"
+                  placeholder="staff@programtrack.ng"
                   className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-md text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700 transition"
                 />
               </div>
@@ -121,14 +121,12 @@ export default function LoginPage() {
               className="w-full py-2.5 px-4 bg-teal-700 hover:bg-teal-800 text-white font-medium text-xs rounded-md shadow-xs transition disabled:opacity-50 flex items-center justify-center space-x-2"
             >
               {loading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-              <span>Sign In to Dashboard</span>
+              <span>Sign in</span>
             </button>
           </form>
         </div>
 
-        <div className="text-center text-[11px] text-slate-500">
-          Demo Admin: <code className="bg-slate-200 px-1 py-0.5 rounded text-slate-800">admin@developmenthub.org</code> / <code className="bg-slate-200 px-1 py-0.5 rounded text-slate-800">admin123</code>
-        </div>
+
       </div>
     </div>
   );

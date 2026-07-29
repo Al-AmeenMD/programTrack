@@ -43,7 +43,7 @@ async function upsertProgram(data: {
 async function main() {
   const dataAnalysis = await upsertProgram({
     name: "Data Analysis Course",
-    description: "Hands-on data analysis training for Development Hub participants.",
+    description: "Hands-on data analysis training for ProgramTrack participants.",
     start_date: new Date("2026-07-01"),
     end_date: new Date("2026-09-30"),
     status: "active",
@@ -225,7 +225,7 @@ async function main() {
   const facilitatorPasswordHash = bcrypt.hashSync("facilitator123", 10);
 
   const adminUser = await prisma.staffUser.upsert({
-    where: { email: "admin@developmenthub.org" },
+    where: { email: "admin@programtrack.ng" },
     update: {
       full_name: "Admin User",
       password_hash: adminPasswordHash,
@@ -233,14 +233,14 @@ async function main() {
     },
     create: {
       full_name: "Admin User",
-      email: "admin@developmenthub.org",
+      email: "admin@programtrack.ng",
       password_hash: adminPasswordHash,
       role: "admin",
     },
   });
 
   const facilitatorUser = await prisma.staffUser.upsert({
-    where: { email: "facilitator@developmenthub.org" },
+    where: { email: "facilitator@programtrack.ng" },
     update: {
       full_name: "Facilitator User",
       password_hash: facilitatorPasswordHash,
@@ -248,7 +248,7 @@ async function main() {
     },
     create: {
       full_name: "Facilitator User",
-      email: "facilitator@developmenthub.org",
+      email: "facilitator@programtrack.ng",
       password_hash: facilitatorPasswordHash,
       role: "facilitator",
     },

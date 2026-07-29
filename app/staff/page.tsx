@@ -632,7 +632,7 @@ export default function StaffManagementPage() {
               required
               value={addForm.email}
               onChange={(e) => setAddForm({ ...addForm, email: e.target.value })}
-              placeholder="ibrahim@developmenthub.org"
+              placeholder="ibrahim@programtrack.ng"
               className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
             />
           </div>

@@ -53,6 +53,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
             phone: true,
           },
         },
+        course: true,
       },
       orderBy: {
         created_at: "asc",
@@ -70,6 +71,8 @@ export async function GET(req: NextRequest, context: RouteContext) {
       return {
         enrollment_id: en.id,
         participant: en.participant,
+        course_id: en.course_id,
+        course: en.course,
         enrollment_status: en.status,
         attendance_record: record
           ? {

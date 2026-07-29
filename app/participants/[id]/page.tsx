@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Edit, Trash2, Calendar, Mail, Phone, User, ShieldCheck, GraduationCap, AlertCircle, RefreshCw } from "lucide-react";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Modal, ConfirmDialog } from "@/components/ui/Dialog";
+import { IntakeFormModal } from "@/components/IntakeFormModal";
 
 type Enrollment = {
   id: string;
@@ -67,6 +68,12 @@ export default function ParticipantDetailPage({ params }: RouteContext) {
   // Delete Modal State
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Intake Form Modal State
+  const [intakeModalTarget, setIntakeModalTarget] = useState<{
+    enrollmentId: string;
+    programId: string;
+  } | null>(null);
 
   const fetchParticipant = async () => {
     setLoading(true);
@@ -305,6 +312,7 @@ export default function ParticipantDetailPage({ params }: RouteContext) {
                   <th className="py-2.5 px-4">Enrollment Status</th>
                   <th className="py-2.5 px-4">Program Status</th>
                   <th className="py-2.5 px-4">Enrolled Date</th>
+                  <th className="py-2.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -327,12 +335,37 @@ export default function ParticipantDetailPage({ params }: RouteContext) {
                     <td className="py-2.5 px-4 text-slate-600">
                       {new Date(en.created_at).toLocaleDateString()}
                     </td>
+                    <td className="py-2.5 px-4 text-right">
+                      {/* INTAKE FORM BUTTON — hidden until intake form feature is enabled
+                      <button
+                        onClick={() =>
+                          setIntakeModalTarget({
+                            enrollmentId: en.id,
+                            programId: en.program.id,
+                          })
+                        }
+                        className="px-2 py-1 bg-teal-700 hover:bg-teal-800 text-white rounded text-[11px] font-medium transition"
+                      >
+                        Intake Form
+                      </button>
+                      */}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           )}
         </div>
+
+        {/* INTAKE FORM MODAL — hidden until intake form feature is enabled
+        <IntakeFormModal
+          isOpen={Boolean(intakeModalTarget)}
+          onClose={() => setIntakeModalTarget(null)}
+          enrollmentId={intakeModalTarget?.enrollmentId || null}
+          participantName={displayName}
+          programId={intakeModalTarget?.programId || ""}
+        />
+        */}
       </div>
 
       {/* Edit Modal */}

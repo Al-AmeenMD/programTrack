@@ -1,9 +1,9 @@
 # ProgramTrack — Project Context
 
 ## What this is
-An internal participant/program management system for Development Hub. Development Hub runs multiple programs concurrently (e.g. Data Analysis course, Data Science course, STEM programs). Staff need to:
+An internal participant/program management system for ProgramTrack. ProgramTrack runs multiple programs concurrently (e.g. Data Analysis course, Data Science course, STEM programs). Staff need to:
 - Manage a directory of participants (people)
-- Manage programs (courses/cohorts running at Development Hub)
+- Manage programs (courses/cohorts running at ProgramTrack)
 - Enroll participants into programs, track their status per program
 - Add participants manually one at a time, or bulk upload via CSV
 - Edit, deactivate (soft delete), and search/filter participants and enrollments

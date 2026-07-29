@@ -9,7 +9,7 @@ async function main() {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      email: "admin@developmenthub.org",
+      email: "admin@programtrack.ng",
       password: "admin123",
     }),
   });

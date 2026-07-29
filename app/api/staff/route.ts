@@ -9,33 +9,39 @@ export async function GET(req: NextRequest) {
   try {
     await requireRole("admin", req);
 
-    const staffUsers = await prisma.staffUser.findMany({
-      orderBy: [
-        { status: "asc" },
-        { created_at: "desc" },
-      ],
-      select: {
-        id: true,
-        full_name: true,
-        email: true,
-        role: true,
-        status: true,
-        created_at: true,
-        updated_at: true,
-        program_staff: {
-          include: {
-            program: true,
-            courses: {
-              include: {
-                course: true,
+    const [staffUsers, total] = await Promise.all([
+      prisma.staffUser.findMany({
+        orderBy: [
+          { status: "asc" },
+          { created_at: "desc" },
+        ],
+        select: {
+          id: true,
+          full_name: true,
+          email: true,
+          role: true,
+          status: true,
+          created_at: true,
+          updated_at: true,
+          program_staff: {
+            include: {
+              program: true,
+              courses: {
+                include: {
+                  course: true,
+                },
               },
             },
           },
         },
-      },
-    });
+      }),
+      prisma.staffUser.count({ where: { status: "active" } }),
+    ]);
 
-    return NextResponse.json({ data: staffUsers });
+    return NextResponse.json({
+      data: staffUsers,
+      meta: { total },
+    });
   } catch (error) {
     return handleApiError(error);
   }

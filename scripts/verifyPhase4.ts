@@ -56,7 +56,7 @@ async function main() {
       new Request("http://localhost/api/auth/login", {
         method: "POST",
         body: JSON.stringify({
-          email: "admin@developmenthub.org",
+          email: "admin@programtrack.ng",
           password: "admin123",
         }),
       }) as never
@@ -70,7 +70,7 @@ async function main() {
       new Request("http://localhost/api/auth/login", {
         method: "POST",
         body: JSON.stringify({
-          email: "facilitator@developmenthub.org",
+          email: "facilitator@programtrack.ng",
           password: "facilitator123",
         }),
       }) as never
