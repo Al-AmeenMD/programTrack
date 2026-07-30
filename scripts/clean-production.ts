@@ -20,7 +20,23 @@ const prisma = new PrismaClient({ adapter });
 
 const ADMIN_ID = "13052baf-bb0b-4fdd-bf38-ec98e1fa2739";
 
+function logDatabaseTarget(url?: string) {
+  let host = "UNKNOWN";
+  if (url) {
+    try {
+      host = new URL(url).host || url.match(/@([^/:]+)/)?.[1] || "UNKNOWN";
+    } catch {
+      const match = url.match(/@([^/:]+)/);
+      if (match) host = match[1];
+    }
+  }
+  console.log("======================================================================");
+  console.log(`[ENVIRONMENT GUARD] Connecting to Database Host: ${host}`);
+  console.log("======================================================================");
+}
+
 async function main() {
+  logDatabaseTarget(connectionString);
   console.log("=== STARTING PRODUCTION DATABASE CLEANUP ===");
   console.log("Wiping all test data while preserving only the primary Admin User...");
 

@@ -37,7 +37,24 @@ const SEED_SESSION_2_ID = "00000000-0000-4000-d000-000000000002"; // Week 2: Adv
 
 const SEED_FORM_TEMPLATE_1_ID = "00000000-0000-4000-e000-000000000001"; // Intake Questionnaire
 
+function logDatabaseTarget(url?: string) {
+  let host = "UNKNOWN";
+  if (url) {
+    try {
+      host = new URL(url).host || url.match(/@([^/:]+)/)?.[1] || "UNKNOWN";
+    } catch {
+      const match = url.match(/@([^/:]+)/);
+      if (match) host = match[1];
+    }
+  }
+  console.log("======================================================================");
+  console.log(`[ENVIRONMENT GUARD] Connecting to Database Host: ${host}`);
+  console.log("======================================================================");
+}
+
 async function main() {
+  logDatabaseTarget(connectionString);
+
   // 1. Seed Programs (Upsert by fixed ID)
   const dataAnalysis = await prisma.program.upsert({
     where: { id: SEED_PROGRAM_DA_ID },
