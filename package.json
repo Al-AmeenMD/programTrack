@@ -9,7 +9,8 @@
     "lint": "next lint",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "db:clean": "npx tsx scripts/clean-production.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.7.0",
