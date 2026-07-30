@@ -21,10 +21,8 @@ export function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
         <div className="flex items-center space-x-6">
           <Link href="/home" className="flex items-center space-x-2.5 group">
-            <div className={`w-8 h-8 rounded flex items-center justify-center font-bold text-white text-sm tracking-wider transition ${
-              isActive("/home") ? "bg-teal-500" : "bg-teal-700 group-hover:bg-teal-600"
-            }`}>
-              PT
+            <div className="w-8 h-8 rounded-md bg-white p-0.5 shadow-xs flex items-center justify-center overflow-hidden shrink-0 border border-slate-700">
+              <img src="/logo.png" alt="ProgramTrack" className="w-full h-full object-contain" />
             </div>
             <span className="font-semibold text-base tracking-tight text-slate-100">
               ProgramTrack

@@ -51,8 +51,8 @@ export default function LoginPage() {
     <div className="min-h-[80vh] flex flex-col justify-center items-center py-12 px-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-lg bg-teal-700 text-white font-bold text-xl flex items-center justify-center mx-auto shadow-sm">
-            PT
+          <div className="w-16 h-16 rounded-xl bg-white border border-slate-200/80 p-1.5 shadow-sm flex items-center justify-center mx-auto overflow-hidden">
+            <img src="/logo.png" alt="ProgramTrack Logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight">
             ProgramTrack
