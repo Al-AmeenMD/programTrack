@@ -126,8 +126,8 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Tiles Grid — all four use teal icon backgrounds for consistency */}
-      <div className={`grid gap-4 ${isAdmin ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2 sm:grid-cols-3"}`}>
+      {/* Tiles Grid — responsive mobile-first layout */}
+      <div className={`grid gap-3.5 sm:gap-4 ${isAdmin ? "grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-4" : "grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3"}`}>
 
         {/* Programs Tile */}
         <Link
@@ -227,7 +227,7 @@ export default function HomePage() {
       </div>
 
       {/* Footer note — keeps page from feeling sparse */}
-      <div className="flex items-center justify-between pt-2 border-t border-slate-200 text-xs text-slate-400">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pt-2 border-t border-slate-200 text-xs text-slate-400">
         <span>Signed in as <span className="font-semibold text-slate-600">{user.full_name}</span> · <span className="capitalize">{user.role}</span></span>
         <Link href="/settings" className="flex items-center space-x-1 hover:text-teal-700 transition font-medium">
           <span>Account settings</span>
