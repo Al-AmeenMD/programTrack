@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 const JWT_SECRET = process.env.JWT_SECRET || "programtrack-super-secret-jwt-key-2026-development-hub";
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl;
 
   // Allow static files, Next internal routes, public assets
@@ -70,7 +70,7 @@ export async function middleware(req: NextRequest) {
     return response;
   }
 
-  // Edge RBAC check for admin-only staff routes (/staff, /api/staff)
+  // Edge/Proxy RBAC check for admin-only staff routes (/staff, /api/staff)
   const isAdminRoute = pathname.startsWith("/staff") || pathname.startsWith("/api/staff");
   if (isAdminRoute && userRole !== "admin") {
     if (pathname.startsWith("/api/")) {
