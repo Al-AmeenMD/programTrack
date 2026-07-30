@@ -17,6 +17,8 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error) {
-    return handleApiError(error);
+    const res = handleApiError(error);
+    res.cookies.delete("programtrack_session");
+    return res;
   }
 }

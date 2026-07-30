@@ -199,6 +199,11 @@ export default function ParticipantsPage() {
       return;
     }
 
+    if (addForm.nin_number && !/^\d{11}$/.test(addForm.nin_number.trim())) {
+      setAddError("NIN number must be exactly 11 numeric digits");
+      return;
+    }
+
     setAddLoading(true);
     setAddError(null);
 

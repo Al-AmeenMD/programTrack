@@ -18,6 +18,7 @@ export async function middleware(req: NextRequest) {
   const sessionCookie = req.cookies.get("programtrack_session");
   let isAuthenticated = false;
   let userRole: string | null = null;
+  let invalidCookiePresent = false;
 
   if (sessionCookie?.value) {
     try {
@@ -27,6 +28,7 @@ export async function middleware(req: NextRequest) {
       userRole = (payload.role as string) || null;
     } catch {
       isAuthenticated = false;
+      invalidCookiePresent = true;
     }
   }
 
@@ -45,21 +47,24 @@ export async function middleware(req: NextRequest) {
     return response;
   }
 
-  // If authenticated and visiting /login, redirect to /programs
+  // If authenticated and visiting /login, redirect to /home
   if (isAuthenticated && isLoginPage) {
-    return NextResponse.redirect(new URL("/programs", req.url));
+    return NextResponse.redirect(new URL("/home", req.url));
   }
 
   // If unauthenticated and trying to access protected routes/pages
   if (!isAuthenticated && !isLoginPage) {
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      const response = NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      if (invalidCookiePresent) {
+        response.cookies.delete("programtrack_session");
+      }
+      return response;
     }
 
     const loginUrl = new URL("/login", req.url);
     const response = NextResponse.redirect(loginUrl);
-    // Clear invalid/expired session cookie immediately
-    if (sessionCookie) {
+    if (sessionCookie || invalidCookiePresent) {
       response.cookies.delete("programtrack_session");
     }
     return response;
@@ -71,7 +76,7 @@ export async function middleware(req: NextRequest) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 });
     }
-    return NextResponse.redirect(new URL("/programs", req.url));
+    return NextResponse.redirect(new URL("/home", req.url));
   }
 
   return NextResponse.next();

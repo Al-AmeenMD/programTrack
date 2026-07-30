@@ -58,7 +58,7 @@ async function main() {
       new Request("http://localhost/api/auth/login", {
         method: "POST",
         body: JSON.stringify({
-          email: "admin@programtrack.ng",
+          email: "admin@developmenthub.ng",
           password: "admin123",
         }),
       }) as never
@@ -72,7 +72,7 @@ async function main() {
       new Request("http://localhost/api/auth/login", {
         method: "POST",
         body: JSON.stringify({
-          email: "facilitator@programtrack.ng",
+          email: "facilitator@developmenthub.ng",
           password: "facilitator123",
         }),
       }) as never
@@ -94,7 +94,7 @@ async function main() {
     createdProgramIds.push(programB.id);
 
     const facilitatorUser = await prisma.staffUser.findUniqueOrThrow({
-      where: { email: "facilitator@programtrack.ng" },
+      where: { email: "facilitator@developmenthub.ng" },
     });
 
     // Assign Program A to facilitator via ProgramStaff

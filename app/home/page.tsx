@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Layers, Users, ShieldCheck, Settings, RefreshCw, AlertCircle, ArrowRight } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 
@@ -12,12 +13,18 @@ type Counts = {
 };
 
 export default function HomePage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading, logout } = useAuth();
+  const router = useRouter();
   const [counts, setCounts] = useState<Counts>({ programs: null, participants: null, staff: null });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/login?clear=1");
+      return;
+    }
+
     if (!user) return;
 
     const fetchCounts = async () => {
@@ -49,9 +56,41 @@ export default function HomePage() {
     };
 
     fetchCounts();
-  }, [user]);
+  }, [user, authLoading, router]);
 
-  if (!user) return null;
+  if (authLoading) {
+    return (
+      <div className="p-12 text-center text-xs text-slate-500 flex items-center justify-center space-x-2">
+        <RefreshCw className="w-4 h-4 animate-spin text-teal-700" />
+        <span>Loading...</span>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-[50vh] flex flex-col items-center justify-center space-y-4 py-12 text-center">
+        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+          <ShieldCheck className="w-6 h-6" />
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-lg font-bold text-slate-800">Authentication Required</h2>
+          <p className="text-xs text-slate-500 max-w-sm">
+            Your session has expired or you are not signed in. Please sign in to access ProgramTrack.
+          </p>
+        </div>
+        <a
+          href="/login?clear=1"
+          onClick={async () => {
+            await logout();
+          }}
+          className="inline-flex items-center justify-center px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white text-xs font-semibold rounded-md shadow-xs transition cursor-pointer"
+        >
+          Go to Sign In
+        </a>
+      </div>
+    );
+  }
 
   const isAdmin = user.role === "admin";
 
@@ -70,9 +109,20 @@ export default function HomePage() {
       </div>
 
       {error && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-md flex items-center space-x-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>{error}</span>
+        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-md flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+          <a
+            href="/login?clear=1"
+            onClick={async () => {
+              await logout();
+            }}
+            className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white font-medium rounded text-[11px] transition cursor-pointer"
+          >
+            Return to Login
+          </a>
         </div>
       )}
 

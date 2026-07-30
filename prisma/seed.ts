@@ -19,61 +19,84 @@ const pool = new Pool({
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
-async function upsertProgram(data: {
-  name: string;
-  description: string;
-  start_date: Date;
-  end_date: Date;
-  status: "active" | "upcoming";
-}) {
-  const existing = await prisma.program.findFirst({
-    where: { name: data.name },
-  });
+// Fixed, deterministic UUIDs for seed entities to guarantee 100% idempotency
+const SEED_ADMIN_ID = "13052baf-bb0b-4fdd-bf38-ec98e1fa2739";
+const SEED_FACILITATOR_ID = "76f02055-7da7-4d3c-96d6-bb5b7fce5716";
 
-  if (existing) {
-    return prisma.program.update({
-      where: { id: existing.id },
-      data,
-    });
-  }
+const SEED_PROGRAM_DA_ID = "1ee1ffa8-bf04-4f39-8e3e-7e267e0fcd15";
+const SEED_PROGRAM_DS_ID = "5cb62d0c-1b66-4ab8-a0e1-c52d17416237";
 
-  return prisma.program.create({ data });
-}
+const SEED_PARTICIPANT_1_ID = "5a1b2659-3f5b-4417-8874-60019db39d8a"; // Amina Yusuf
+const SEED_PARTICIPANT_2_ID = "5f719fac-a8d8-4a92-a118-fc5720a5e824"; // Musa Bello
+const SEED_PARTICIPANT_3_ID = "98b7f7ee-ae19-42d2-bdae-d1283207cc3b"; // Zainab Ali
+const SEED_PARTICIPANT_4_ID = "7eae8c42-ae06-433a-a312-dd00c1a3bad4"; // Chinedu Okafor
+const SEED_PARTICIPANT_5_ID = "a45b63e1-7d3c-4c10-b805-d539fc5a24f9"; // Fatima Sani
+
+const SEED_SESSION_1_ID = "00000000-0000-4000-d000-000000000001"; // Week 1: Introduction to SQL
+const SEED_SESSION_2_ID = "00000000-0000-4000-d000-000000000002"; // Week 2: Advanced SQL Joins
+
+const SEED_FORM_TEMPLATE_1_ID = "00000000-0000-4000-e000-000000000001"; // Intake Questionnaire
 
 async function main() {
-  const dataAnalysis = await upsertProgram({
-    name: "Data Analysis Course",
-    description: "Hands-on data analysis training for ProgramTrack participants.",
-    start_date: new Date("2026-07-01"),
-    end_date: new Date("2026-09-30"),
-    status: "active",
+  // 1. Seed Programs (Upsert by fixed ID)
+  const dataAnalysis = await prisma.program.upsert({
+    where: { id: SEED_PROGRAM_DA_ID },
+    update: {
+      name: "Data Analysis Course",
+      description: "Hands-on data analysis training for ProgramTrack participants.",
+      start_date: new Date("2026-07-01"),
+      end_date: new Date("2026-09-30"),
+      status: "active",
+    },
+    create: {
+      id: SEED_PROGRAM_DA_ID,
+      name: "Data Analysis Course",
+      description: "Hands-on data analysis training for ProgramTrack participants.",
+      start_date: new Date("2026-07-01"),
+      end_date: new Date("2026-09-30"),
+      status: "active",
+    },
   });
 
-  const dataScience = await upsertProgram({
-    name: "Data Science Cohort",
-    description: "Upcoming data science cohort covering Python, ML, and projects.",
-    start_date: new Date("2026-08-15"),
-    end_date: new Date("2026-12-15"),
-    status: "upcoming",
+  const dataScience = await prisma.program.upsert({
+    where: { id: SEED_PROGRAM_DS_ID },
+    update: {
+      name: "Data Science Cohort",
+      description: "Upcoming data science cohort covering Python, ML, and projects.",
+      start_date: new Date("2026-08-15"),
+      end_date: new Date("2026-12-15"),
+      status: "upcoming",
+    },
+    create: {
+      id: SEED_PROGRAM_DS_ID,
+      name: "Data Science Cohort",
+      description: "Upcoming data science cohort covering Python, ML, and projects.",
+      start_date: new Date("2026-08-15"),
+      end_date: new Date("2026-12-15"),
+      status: "upcoming",
+    },
   });
 
+  // 2. Seed Participants (Upsert by fixed ID)
   const participants = await Promise.all([
     prisma.participant.upsert({
-      where: { email: "amina.yusuf@example.com" },
+      where: { id: SEED_PARTICIPANT_1_ID },
       update: {
         first_name: "Amina",
         last_name: "Yusuf",
-        nin_number: "NIN-10000000001",
+        nin_number: "10000000001",
         full_name: "Amina Yusuf",
+        email: "amina.yusuf@example.com",
         phone: "+2348010000001",
         gender: "female",
         date_of_birth: new Date("2001-04-12"),
         status: "active",
       },
       create: {
+        id: SEED_PARTICIPANT_1_ID,
         first_name: "Amina",
         last_name: "Yusuf",
-        nin_number: "NIN-10000000001",
+        nin_number: "10000000001",
         full_name: "Amina Yusuf",
         email: "amina.yusuf@example.com",
         phone: "+2348010000001",
@@ -82,21 +105,23 @@ async function main() {
       },
     }),
     prisma.participant.upsert({
-      where: { email: "musa.bello@example.com" },
+      where: { id: SEED_PARTICIPANT_2_ID },
       update: {
         first_name: "Musa",
         last_name: "Bello",
-        nin_number: "NIN-10000000002",
+        nin_number: "10000000002",
         full_name: "Musa Bello",
+        email: "musa.bello@example.com",
         phone: "+2348010000002",
         gender: "male",
         date_of_birth: new Date("1999-11-03"),
         status: "active",
       },
       create: {
+        id: SEED_PARTICIPANT_2_ID,
         first_name: "Musa",
         last_name: "Bello",
-        nin_number: "NIN-10000000002",
+        nin_number: "10000000002",
         full_name: "Musa Bello",
         email: "musa.bello@example.com",
         phone: "+2348010000002",
@@ -105,20 +130,22 @@ async function main() {
       },
     }),
     prisma.participant.upsert({
-      where: { email: "zainab.ali@example.com" },
+      where: { id: SEED_PARTICIPANT_3_ID },
       update: {
         first_name: "Zainab",
         last_name: "Ali",
-        nin_number: "NIN-10000000003",
+        nin_number: "10000000003",
         full_name: "Zainab Ali",
+        email: "zainab.ali@example.com",
         phone: "+2348010000003",
         gender: "female",
         status: "active",
       },
       create: {
+        id: SEED_PARTICIPANT_3_ID,
         first_name: "Zainab",
         last_name: "Ali",
-        nin_number: "NIN-10000000003",
+        nin_number: "10000000003",
         full_name: "Zainab Ali",
         email: "zainab.ali@example.com",
         phone: "+2348010000003",
@@ -126,50 +153,51 @@ async function main() {
       },
     }),
     prisma.participant.upsert({
-      where: { phone: "+2348010000004" },
+      where: { id: SEED_PARTICIPANT_4_ID },
       update: {
         first_name: "Chinedu",
         last_name: "Okafor",
-        nin_number: "NIN-10000000004",
+        nin_number: "10000000004",
         full_name: "Chinedu Okafor",
-        email: null,
+        phone: "+2348010000004",
         gender: "male",
         status: "active",
       },
       create: {
+        id: SEED_PARTICIPANT_4_ID,
         first_name: "Chinedu",
         last_name: "Okafor",
-        nin_number: "NIN-10000000004",
+        nin_number: "10000000004",
         full_name: "Chinedu Okafor",
-        email: null,
         phone: "+2348010000004",
         gender: "male",
       },
     }),
     prisma.participant.upsert({
-      where: { phone: "+2348010000005" },
+      where: { id: SEED_PARTICIPANT_5_ID },
       update: {
         first_name: "Fatima",
         last_name: "Sani",
-        nin_number: "NIN-10000000005",
+        nin_number: "10000000005",
         full_name: "Fatima Sani",
-        email: null,
+        phone: "+2348010000005",
         gender: "female",
         status: "active",
       },
       create: {
+        id: SEED_PARTICIPANT_5_ID,
         first_name: "Fatima",
         last_name: "Sani",
-        nin_number: "NIN-10000000005",
+        nin_number: "10000000005",
         full_name: "Fatima Sani",
-        email: null,
         phone: "+2348010000005",
         gender: "female",
       },
     }),
   ]);
 
-  const enrollments = [
+  // 3. Seed Enrollments (Upsert by compound key participant_id_program_id)
+  const enrollmentsData = [
     {
       participant_id: participants[0].id,
       program_id: dataAnalysis.id,
@@ -203,58 +231,62 @@ async function main() {
   ];
 
   const seededEnrollments = [];
-  for (const enrollment of enrollments) {
+  for (const en of enrollmentsData) {
     const dbEnrollment = await prisma.enrollment.upsert({
       where: {
         participant_id_program_id: {
-          participant_id: enrollment.participant_id,
-          program_id: enrollment.program_id,
+          participant_id: en.participant_id,
+          program_id: en.program_id,
         },
       },
       update: {
-        status: enrollment.status,
-        metadata: enrollment.metadata,
+        status: en.status,
+        metadata: en.metadata,
       },
-      create: enrollment,
+      create: en,
     });
     seededEnrollments.push(dbEnrollment);
   }
 
-  // --- Seed StaffUsers ---
+  // 4. Seed StaffUsers (Upsert by fixed ID)
   const adminPasswordHash = bcrypt.hashSync("admin123", 10);
   const facilitatorPasswordHash = bcrypt.hashSync("facilitator123", 10);
 
   const adminUser = await prisma.staffUser.upsert({
-    where: { email: "admin@programtrack.ng" },
+    where: { id: SEED_ADMIN_ID },
     update: {
       full_name: "Admin User",
+      email: "admin@developmenthub.ng",
       password_hash: adminPasswordHash,
       role: "admin",
     },
     create: {
+      id: SEED_ADMIN_ID,
       full_name: "Admin User",
-      email: "admin@programtrack.ng",
+      email: "admin@developmenthub.ng",
       password_hash: adminPasswordHash,
       role: "admin",
     },
   });
 
   const facilitatorUser = await prisma.staffUser.upsert({
-    where: { email: "facilitator@programtrack.ng" },
+    where: { id: SEED_FACILITATOR_ID },
     update: {
       full_name: "Facilitator User",
+      email: "facilitator@developmenthub.ng",
       password_hash: facilitatorPasswordHash,
       role: "facilitator",
     },
     create: {
+      id: SEED_FACILITATOR_ID,
       full_name: "Facilitator User",
-      email: "facilitator@programtrack.ng",
+      email: "facilitator@developmenthub.ng",
       password_hash: facilitatorPasswordHash,
       role: "facilitator",
     },
   });
 
-  // --- Seed ProgramStaff ---
+  // 5. Seed ProgramStaff (Upsert by compound key staff_user_id_program_id)
   await prisma.programStaff.upsert({
     where: {
       staff_user_id_program_id: {
@@ -269,29 +301,39 @@ async function main() {
     },
   });
 
-  // --- Seed Sessions ---
-  const session1 = await prisma.session.findFirst({
-    where: { program_id: dataAnalysis.id, title: "Week 1: Introduction to SQL" }
-  }) || await prisma.session.create({
-    data: {
+  // 6. Seed Sessions (Upsert by fixed ID)
+  const session1 = await prisma.session.upsert({
+    where: { id: SEED_SESSION_1_ID },
+    update: {
       program_id: dataAnalysis.id,
       title: "Week 1: Introduction to SQL",
       session_date: new Date("2026-07-02"),
-    }
+    },
+    create: {
+      id: SEED_SESSION_1_ID,
+      program_id: dataAnalysis.id,
+      title: "Week 1: Introduction to SQL",
+      session_date: new Date("2026-07-02"),
+    },
   });
 
-  const session2 = await prisma.session.findFirst({
-    where: { program_id: dataAnalysis.id, title: "Week 2: Advanced SQL Joins" }
-  }) || await prisma.session.create({
-    data: {
+  const session2 = await prisma.session.upsert({
+    where: { id: SEED_SESSION_2_ID },
+    update: {
       program_id: dataAnalysis.id,
       title: "Week 2: Advanced SQL Joins",
       session_date: new Date("2026-07-09"),
-    }
+    },
+    create: {
+      id: SEED_SESSION_2_ID,
+      program_id: dataAnalysis.id,
+      title: "Week 2: Advanced SQL Joins",
+      session_date: new Date("2026-07-09"),
+    },
   });
 
-  // --- Seed AttendanceRecords ---
-  const daEnrollments = seededEnrollments.filter(e => e.program_id === dataAnalysis.id);
+  // 7. Seed AttendanceRecords (Upsert by compound key session_id_enrollment_id)
+  const daEnrollments = seededEnrollments.filter((e) => e.program_id === dataAnalysis.id);
 
   if (daEnrollments.length >= 2) {
     const enrollmentAmina = daEnrollments[0];
@@ -374,21 +416,33 @@ async function main() {
     });
   }
 
-  // --- Seed FormTemplate ---
-  await prisma.formTemplate.findFirst({
-    where: { program_id: dataAnalysis.id, name: "Intake Questionnaire" }
-  }) || await prisma.formTemplate.create({
-    data: {
+  // 8. Seed FormTemplate (Upsert by fixed ID)
+  await prisma.formTemplate.upsert({
+    where: { id: SEED_FORM_TEMPLATE_1_ID },
+    update: {
       program_id: dataAnalysis.id,
       name: "Intake Questionnaire",
       type: "intake",
       fields: [
         { label: "Prior Coding Experience", field_type: "select", required: true },
         { label: "Why do you want to join this program?", field_type: "textarea", required: true },
-        { label: "How did you hear about us?", field_type: "text", required: false }
+        { label: "How did you hear about us?", field_type: "text", required: false },
       ],
-    }
+    },
+    create: {
+      id: SEED_FORM_TEMPLATE_1_ID,
+      program_id: dataAnalysis.id,
+      name: "Intake Questionnaire",
+      type: "intake",
+      fields: [
+        { label: "Prior Coding Experience", field_type: "select", required: true },
+        { label: "Why do you want to join this program?", field_type: "textarea", required: true },
+        { label: "How did you hear about us?", field_type: "text", required: false },
+      ],
+    },
   });
+
+  console.log("Database seeded successfully and deterministically.");
 }
 
 main()

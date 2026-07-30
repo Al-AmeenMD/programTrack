@@ -58,7 +58,7 @@ async function main() {
   const testStaff = await prisma.staffUser.findMany({
     where: {
       email: {
-        notIn: ["admin@programtrack.ng", "facilitator@programtrack.ng"],
+        notIn: ["admin@developmenthub.ng", "facilitator@developmenthub.ng"],
       },
     },
     select: { id: true, email: true },

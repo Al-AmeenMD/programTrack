@@ -19,7 +19,11 @@ export const participantCoreSchema = z
     first_name: z.string().trim().min(1, "First name is required"),
     middle_name: optionalText,
     last_name: z.string().trim().min(1, "Last / surname is required"),
-    nin_number: z.string().trim().min(1, "NIN number is required"),
+    nin_number: z
+      .string()
+      .trim()
+      .min(1, "NIN number is required")
+      .regex(/^\d{11}$/, "NIN number must be exactly 11 numeric digits"),
     qualification: optionalText,
     email: optionalEmail,
     phone: optionalText,
@@ -42,7 +46,11 @@ export const updateParticipantSchema = z
     first_name: z.string().trim().min(1).optional(),
     middle_name: optionalText,
     last_name: z.string().trim().min(1).optional(),
-    nin_number: z.string().trim().min(1).optional(),
+    nin_number: z
+      .string()
+      .trim()
+      .regex(/^\d{11}$/, "NIN number must be exactly 11 numeric digits")
+      .optional(),
     qualification: optionalText,
     email: optionalEmail,
     phone: optionalText,

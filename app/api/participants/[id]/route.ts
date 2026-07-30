@@ -50,7 +50,12 @@ export async function GET(req: NextRequest, context: RouteContext) {
             : undefined,
           orderBy: { enrolled_at: "desc" },
           include: {
-            program: true,
+            program: {
+              include: {
+                courses: true,
+              },
+            },
+            course: true,
           },
         },
       },
