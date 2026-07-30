@@ -64,7 +64,7 @@ async function main() {
   // 5. Delete non-admin staff accounts
   const deletedStaff = await prisma.staffUser.deleteMany({
     where: {
-      email: { notIn: ["admin@developmenthub.ng"] },
+      email: { notIn: ["admin@programtrack.ng"] },
     },
   });
   console.log(`Deleted ${deletedStaff.count} non-admin staff users.`);
@@ -75,7 +75,7 @@ async function main() {
     where: { id: ADMIN_ID },
     update: {
       full_name: "Admin User",
-      email: "admin@developmenthub.ng",
+      email: "admin@programtrack.ng",
       password_hash: adminPasswordHash,
       role: "admin",
       status: "active",
@@ -83,7 +83,7 @@ async function main() {
     create: {
       id: ADMIN_ID,
       full_name: "Admin User",
-      email: "admin@developmenthub.ng",
+      email: "admin@programtrack.ng",
       password_hash: adminPasswordHash,
       role: "admin",
       status: "active",

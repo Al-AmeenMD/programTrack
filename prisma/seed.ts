@@ -256,14 +256,14 @@ async function main() {
     where: { id: SEED_ADMIN_ID },
     update: {
       full_name: "Admin User",
-      email: "admin@developmenthub.ng",
+      email: "admin@programtrack.ng",
       password_hash: adminPasswordHash,
       role: "admin",
     },
     create: {
       id: SEED_ADMIN_ID,
       full_name: "Admin User",
-      email: "admin@developmenthub.ng",
+      email: "admin@programtrack.ng",
       password_hash: adminPasswordHash,
       role: "admin",
     },
