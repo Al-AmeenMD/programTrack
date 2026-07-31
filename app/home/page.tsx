@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Layers, Users, ShieldCheck, Settings, RefreshCw, AlertCircle, ArrowRight } from "lucide-react";
+import { Layers, Users, ShieldCheck, Settings, RefreshCw, AlertCircle, ArrowRight, BarChart3 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 
 type Counts = {
@@ -127,7 +127,26 @@ export default function HomePage() {
       )}
 
       {/* Tiles Grid — responsive mobile-first layout */}
-      <div className={`grid gap-3.5 sm:gap-4 ${isAdmin ? "grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-4" : "grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3"}`}>
+      <div className={`grid gap-3.5 sm:gap-4 ${isAdmin ? "grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-4" : "grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-4"}`}>
+
+        {/* Analytics Tile */}
+        <Link
+          href="/dashboard"
+          className="group bg-white rounded-lg border border-slate-200 shadow-xs p-5 hover:border-teal-300 hover:shadow-sm transition-all space-y-3"
+        >
+          <div className="flex items-center justify-between">
+            <div className="w-9 h-9 rounded-md bg-teal-50 border border-teal-200 flex items-center justify-center group-hover:bg-teal-100 transition">
+              <BarChart3 className="w-[18px] h-[18px] text-teal-700" />
+            </div>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              Analytics
+            </span>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-700 mt-1">Health & Trends</p>
+            <p className="text-xs text-slate-500 mt-0.5 font-medium">Dashboard Reports</p>
+          </div>
+        </Link>
 
         {/* Programs Tile */}
         <Link

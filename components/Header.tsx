@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, Layers, Users, ShieldCheck, Settings, Menu, X } from "lucide-react";
+import { LogOut, Layers, Users, ShieldCheck, Settings, Menu, X, BarChart3 } from "lucide-react";
 import { useAuth } from "./AuthProvider";
 import { useState, useEffect } from "react";
 
@@ -24,6 +24,7 @@ export function Header() {
     path === "/home" ? pathname === "/home" : pathname.startsWith(path);
 
   const navItems = [
+    { href: "/dashboard", label: "Analytics", icon: BarChart3 },
     { href: "/programs", label: "Programs", icon: Layers },
     { href: "/participants", label: "Participants", icon: Users },
     ...(user.role === "admin"

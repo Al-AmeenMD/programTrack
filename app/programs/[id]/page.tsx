@@ -25,6 +25,7 @@ import { StatusBadge } from "@/components/ui/Badge";
 import { Modal, ConfirmDialog } from "@/components/ui/Dialog";
 import { BulkUploadModal } from "@/components/BulkUploadModal";
 import { IntakeFormModal } from "@/components/IntakeFormModal";
+import { ProgramReportView } from "@/components/ProgramReportView";
 import { useAuth } from "@/components/AuthProvider";
 
 type CourseItem = {
@@ -107,8 +108,8 @@ export default function ProgramDetailPage({ params }: RouteContext) {
   const [error, setError] = useState<string | null>(null);
 
   // Tab State
-  const initialTab = (searchParams.get("tab") as "enrollments" | "courses" | "sessions" | "form-template") || "enrollments";
-  const [activeTab, setActiveTab] = useState<"enrollments" | "courses" | "sessions" | "form-template">(initialTab);
+  const initialTab = (searchParams.get("tab") as "reports" | "enrollments" | "courses" | "sessions" | "form-template") || "reports";
+  const [activeTab, setActiveTab] = useState<"reports" | "enrollments" | "courses" | "sessions" | "form-template">(initialTab);
 
   // Edit Program Modal
   const [isEditProgramOpen, setIsEditProgramOpen] = useState(false);
@@ -677,6 +678,17 @@ export default function ProgramDetailPage({ params }: RouteContext) {
       {/* TABS NAVIGATION */}
       <div className="border-b border-slate-200 flex space-x-6 text-xs font-semibold">
         <button
+          onClick={() => setActiveTab("reports")}
+          className={`pb-2.5 transition border-b-2 ${
+            activeTab === "reports"
+              ? "border-teal-700 text-teal-800"
+              : "border-transparent text-slate-500 hover:text-slate-900"
+          }`}
+        >
+          Overview & Reports
+        </button>
+
+        <button
           onClick={() => setActiveTab("enrollments")}
           className={`pb-2.5 transition border-b-2 ${
             activeTab === "enrollments"
@@ -708,20 +720,10 @@ export default function ProgramDetailPage({ params }: RouteContext) {
         >
           Sessions ({sessions.length})
         </button>
-
-{/* INTAKE FORM TEMPLATE TAB — hidden until intake form feature is enabled
-        <button
-          onClick={() => setActiveTab("form-template")}
-          className={`pb-2.5 transition border-b-2 ${
-            activeTab === "form-template"
-              ? "border-teal-700 text-teal-800"
-              : "border-transparent text-slate-500 hover:text-slate-900"
-          }`}
-        >
-          Intake Form Template
-        </button>
-        */}
       </div>
+
+      {/* TAB 0: REPORTS */}
+      {activeTab === "reports" && <ProgramReportView programId={id} />}
 
       {/* TAB 1: ENROLLMENTS */}
       {activeTab === "enrollments" && (
