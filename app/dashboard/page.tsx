@@ -222,30 +222,41 @@ export default function DashboardPage() {
           </div>
 
           {/* Bar Chart Visualization */}
-          <div className="pt-4 pb-2">
-            <div className="h-48 flex items-end justify-between gap-2 sm:gap-4 border-b border-slate-200 pb-2">
+          <div className="pt-2 pb-2">
+            <div className="h-56 flex items-end justify-between gap-2.5 sm:gap-5 border-b border-slate-200 pb-3 pt-6">
               {stats.enrollmentTrend.map((item, idx) => {
                 const heightPercent = maxTrendCount > 0 ? (item.count / maxTrendCount) * 100 : 0;
                 return (
-                  <div key={idx} className="flex-1 flex flex-col items-center group relative">
+                  <div key={idx} className="flex-1 h-full flex flex-col justify-end items-center group relative">
                     {/* Tooltip on hover */}
-                    <div className="opacity-0 group-hover:opacity-100 transition absolute -top-8 bg-slate-900 text-white text-[11px] font-semibold py-1 px-2 rounded shadow-md pointer-events-none whitespace-nowrap z-10">
-                      {item.count} enrollment{item.count === 1 ? "" : "s"}
+                    <div className="opacity-0 group-hover:opacity-100 transition absolute -top-8 bg-slate-900 text-white text-[11px] font-semibold py-1 px-2.5 rounded shadow-md pointer-events-none whitespace-nowrap z-20">
+                      {item.period}: {item.count} enrollment{item.count === 1 ? "" : "s"}
                     </div>
 
-                    <div className="w-full bg-slate-100 rounded-t-md h-full flex items-end overflow-hidden">
-                      <div
-                        style={{ height: `${Math.max(heightPercent, 6)}%` }}
-                        className="w-full bg-teal-600 group-hover:bg-teal-500 transition rounded-t-md relative"
-                      >
-                        {item.count > 0 && (
-                          <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[11px] font-bold text-slate-700">
-                            {item.count}
-                          </span>
-                        )}
-                      </div>
+                    {/* Count pill badge above bar */}
+                    <div className="mb-1.5 h-4 flex items-center justify-center shrink-0">
+                      {item.count > 0 ? (
+                        <span className="text-[11px] font-bold text-teal-800 bg-teal-100 px-1.5 py-0.5 rounded shadow-2xs">
+                          {item.count}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-medium text-slate-300">0</span>
+                      )}
                     </div>
-                    <span className="text-[11px] font-medium text-slate-500 mt-2 truncate w-full text-center">
+
+                    {/* Bar container */}
+                    <div className="w-full bg-slate-100/80 rounded-t-lg flex-1 max-h-[140px] flex items-end p-0.5 border border-slate-200/60 overflow-hidden">
+                      <div
+                        style={{ height: `${Math.max(heightPercent, item.count > 0 ? 15 : 5)}%` }}
+                        className={`w-full transition-all duration-500 rounded-t-md ${
+                          item.count > 0
+                            ? "bg-gradient-to-t from-teal-700 to-teal-500 group-hover:from-teal-600 group-hover:to-teal-400 shadow-xs"
+                            : "bg-slate-300/40"
+                        }`}
+                      />
+                    </div>
+
+                    <span className="text-[11px] font-semibold text-slate-600 mt-2 truncate w-full text-center shrink-0">
                       {item.period}
                     </span>
                   </div>
