@@ -26,6 +26,9 @@ import { Modal, ConfirmDialog } from "@/components/ui/Dialog";
 import { BulkUploadModal } from "@/components/BulkUploadModal";
 import { IntakeFormModal } from "@/components/IntakeFormModal";
 import { ProgramReportView } from "@/components/ProgramReportView";
+import { EditParticipantModal, ParticipantToEdit } from "@/components/EditParticipantModal";
+import { AddParticipantModal } from "@/components/AddParticipantModal";
+import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import { useAuth } from "@/components/AuthProvider";
 
 type CourseItem = {
@@ -146,6 +149,9 @@ export default function ProgramDetailPage({ params }: RouteContext) {
 
   // Bulk Upload Modal
   const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
+
+  // Edit Participant Modal
+  const [editParticipantTarget, setEditParticipantTarget] = useState<ParticipantToEdit | null>(null);
 
   // Change Course Modal
   const [changeCourseTarget, setChangeCourseTarget] = useState<Enrollment | null>(null);
@@ -821,37 +827,40 @@ export default function ProgramDetailPage({ params }: RouteContext) {
                           )}
                           */}
                           {isAssigned && (
-                            <>
-                              {courses.length > 0 && (
-                                <button
-                                  onClick={() => {
+                            <RowActionsMenu
+                              actions={[
+                                {
+                                  label: "Edit Participant",
+                                  icon: Edit,
+                                  onClick: () => setEditParticipantTarget(en.participant),
+                                  variant: "teal",
+                                },
+                                {
+                                  label: "Change Course / Track",
+                                  icon: BookOpen,
+                                  onClick: () => {
                                     setChangeCourseTarget(en);
                                     setChangeCourseSelectedId(en.course?.id || "");
-                                  }}
-                                  className="px-2 py-1 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded text-[11px] font-medium transition"
-                                >
-                                  Change Course
-                                </button>
-                              )}
-                              <button
-                                onClick={() => {
-                                  setUpdateEnrollmentTarget(en);
-                                  setNewStatus(en.status);
-                                }}
-                                className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[11px] font-medium transition"
-                              >
-                                Change Status
-                              </button>
-                              {en.status !== "dropped" && (
-                                <button
-                                  onClick={() => setDropTarget(en)}
-                                  className="p-1 text-slate-400 hover:text-rose-600 inline-block"
-                                  title="Drop Enrollment"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                            </>
+                                  },
+                                  hidden: courses.length === 0,
+                                },
+                                {
+                                  label: "Change Status",
+                                  icon: RefreshCw,
+                                  onClick: () => {
+                                    setUpdateEnrollmentTarget(en);
+                                    setNewStatus(en.status);
+                                  },
+                                },
+                                {
+                                  label: "Drop Enrollment",
+                                  icon: Trash2,
+                                  onClick: () => setDropTarget(en),
+                                  variant: "danger",
+                                  hidden: en.status === "dropped",
+                                },
+                              ]}
+                            />
                           )}
                         </td>
                       </tr>
@@ -1592,110 +1601,14 @@ export default function ProgramDetailPage({ params }: RouteContext) {
         </form>
       </Modal>
 
-      {/* Enroll Participant Modal */}
-      <Modal
+      {/* Shared Add/Enroll Participant Modal */}
+      <AddParticipantModal
         isOpen={isEnrollModalOpen}
         onClose={() => setIsEnrollModalOpen(false)}
-        title={`Enroll Participant — ${program.name}`}
-      >
-        <form onSubmit={handleEnrollSubmit} className="space-y-4 text-xs">
-          {enrollError && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-md flex items-center space-x-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{enrollError}</span>
-            </div>
-          )}
-
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">
-              Full Name <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={enrollForm.full_name}
-              onChange={(e) => setEnrollForm({ ...enrollForm, full_name: e.target.value })}
-              placeholder="Full Name"
-              className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Email</label>
-              <input
-                type="email"
-                value={enrollForm.email}
-                onChange={(e) => setEnrollForm({ ...enrollForm, email: e.target.value })}
-                placeholder="participant@example.com"
-                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Phone</label>
-              <input
-                type="text"
-                value={enrollForm.phone}
-                onChange={(e) => setEnrollForm({ ...enrollForm, phone: e.target.value })}
-                placeholder="+234..."
-                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">Gender</label>
-            <select
-              value={enrollForm.gender}
-              onChange={(e) => setEnrollForm({ ...enrollForm, gender: e.target.value })}
-              className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-            >
-              <option value="">Select Gender...</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-
-          {courses.length > 0 && (
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
-                Select Course / Track <span className="text-slate-400 font-normal">(Optional)</span>
-              </label>
-              <select
-                value={enrollForm.course_id}
-                onChange={(e) => setEnrollForm({ ...enrollForm, course_id: e.target.value })}
-                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-              >
-                <option value="">Unassigned (No course/track selected)</option>
-                {courses.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div className="flex justify-end space-x-2 pt-3 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => setIsEnrollModalOpen(false)}
-              className="px-3.5 py-1.5 rounded-md text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={enrollLoading}
-              className="px-4 py-1.5 rounded-md text-xs font-medium bg-teal-700 hover:bg-teal-800 text-white transition disabled:opacity-50 flex items-center space-x-1.5"
-            >
-              {enrollLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-              <span>Enroll Participant</span>
-            </button>
-          </div>
-        </form>
-      </Modal>
+        onSuccess={() => fetchProgramData(true)}
+        programId={id}
+        courses={courses}
+      />
 
       {/* Change Course Modal */}
       <Modal
@@ -1802,6 +1715,14 @@ export default function ProgramDetailPage({ params }: RouteContext) {
         description={`Are you sure you want to drop "${dropTarget?.participant.full_name}" from this program? Status will be updated to "dropped".`}
         isLoading={dropLoading}
         confirmLabel="Drop Enrollment"
+      />
+
+      {/* Edit Participant Modal */}
+      <EditParticipantModal
+        isOpen={Boolean(editParticipantTarget)}
+        participant={editParticipantTarget}
+        onClose={() => setEditParticipantTarget(null)}
+        onSuccess={() => fetchProgramData(true)}
       />
 
       {/* Bulk Upload Modal */}

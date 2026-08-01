@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   BarChart3,
   TrendingUp,
+  TrendingDown,
   Users,
   Layers,
   CheckCircle2,
@@ -14,7 +15,18 @@ import {
   ArrowUpRight,
   PieChart,
   Activity,
+  Award,
 } from "lucide-react";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Cell,
+} from "recharts";
 import { useAuth } from "@/components/AuthProvider";
 import { exportToCsv } from "@/lib/exportCsv";
 
@@ -39,6 +51,22 @@ type DashboardStats = {
   dropoutRate: number;
   enrollmentTrend: Array<{ period: string; count: number }>;
 };
+
+// Custom Tooltip for Recharts
+function CustomChartTooltip({ active, payload, label }: any) {
+  if (active && payload && payload.length) {
+    const value = payload[0].value;
+    return (
+      <div className="bg-slate-900 text-white text-xs py-2 px-3 rounded-lg shadow-xl border border-slate-700 z-50">
+        <p className="font-semibold text-slate-300">{label}</p>
+        <p className="text-sm font-bold text-teal-300 mt-0.5">
+          {value} {value === 1 ? "enrollment" : "enrollments"}
+        </p>
+      </div>
+    );
+  }
+  return null;
+}
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -114,7 +142,27 @@ export default function DashboardPage() {
     );
   }
 
-  const maxTrendCount = Math.max(...stats.enrollmentTrend.map((t) => t.count), 1);
+  // Calculate real data-backed MoM trend if historical trend data exists
+  let trendIndicator: { label: string; isPositive: boolean } | null = null;
+  if (stats.enrollmentTrend && stats.enrollmentTrend.length >= 2) {
+    const currentMonth = stats.enrollmentTrend[stats.enrollmentTrend.length - 1];
+    const prevMonth = stats.enrollmentTrend[stats.enrollmentTrend.length - 2];
+
+    if (prevMonth.count > 0) {
+      const pct = Math.round(((currentMonth.count - prevMonth.count) / prevMonth.count) * 100);
+      if (pct !== 0) {
+        trendIndicator = {
+          label: `${pct > 0 ? "+" : ""}${pct}% MoM`,
+          isPositive: pct > 0,
+        };
+      }
+    } else if (currentMonth.count > 0) {
+      trendIndicator = {
+        label: `+${currentMonth.count} new`,
+        isPositive: true,
+      };
+    }
+  }
 
   return (
     <div className="space-y-8 pb-12">
@@ -145,269 +193,287 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Top Key Performance Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 1: Total Active Participants */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Active Participants
-            </p>
-            <p className="text-3xl font-extrabold text-slate-900">{stats.totalActiveParticipants}</p>
-            <p className="text-xs text-slate-500">Currently enrolled & active</p>
+      {/* TOP LEVEL KPIs - UNBOXED, CONFIDENT TYPOGRAPHY (Stripe / Linear style) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 py-2 border-b border-slate-200/70 pb-8">
+        {/* KPI 1: Primary Focus — Total Active Participants */}
+        <div className="space-y-1">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-1.5">
+            <span className="w-2 h-2 rounded-full bg-teal-500" />
+            <span>Active Participants</span>
+          </p>
+          <div className="flex items-baseline space-x-2.5">
+            <span className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight">
+              {stats.totalActiveParticipants}
+            </span>
+            {trendIndicator && (
+              <span
+                className={`inline-flex items-center text-xs font-extrabold px-2 py-0.5 rounded-full ${
+                  trendIndicator.isPositive
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+                    : "bg-rose-50 text-rose-700 border border-rose-200/60"
+                }`}
+              >
+                {trendIndicator.isPositive ? (
+                  <TrendingUp className="w-3 h-3 mr-1 text-emerald-600" />
+                ) : (
+                  <TrendingDown className="w-3 h-3 mr-1 text-rose-600" />
+                )}
+                {trendIndicator.label}
+              </span>
+            )}
           </div>
-          <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center shrink-0 border border-teal-100">
-            <Users className="w-6 h-6" />
-          </div>
+          <p className="text-xs text-slate-500 font-medium">
+            {stats.totalEnrollments} total enrollments across all cohorts
+          </p>
         </div>
 
-        {/* Metric 2: Active Programs */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Active Programs
-            </p>
-            <p className="text-3xl font-extrabold text-slate-900">{stats.programStatusCounts.active}</p>
-            <p className="text-xs text-slate-500">Out of {stats.totalPrograms} total programs</p>
+        {/* KPI 2: Active Programs / Cohorts */}
+        <div className="space-y-1">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+            Active Cohorts
+          </p>
+          <div className="flex items-baseline space-x-2">
+            <span className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+              {stats.programStatusCounts.active}
+            </span>
+            <span className="text-xs text-slate-400 font-medium">
+              / {stats.totalPrograms} total
+            </span>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
-            <Layers className="w-6 h-6" />
-          </div>
+          <p className="text-xs text-slate-500 font-medium">
+            {stats.programStatusCounts.upcoming} upcoming program{stats.programStatusCounts.upcoming === 1 ? "" : "s"}
+          </p>
         </div>
 
-        {/* Metric 3: Overall Completion Rate */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Completion Rate
-            </p>
-            <p className="text-3xl font-extrabold text-teal-700">{stats.completionRate}%</p>
-            <p className="text-xs text-slate-500">{stats.statusCounts.completed} completed enrollments</p>
+        {/* KPI 3: Completion Rate */}
+        <div className="space-y-1">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+            Completion Rate
+          </p>
+          <div className="flex items-baseline space-x-2">
+            <span className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+              {stats.completionRate}%
+            </span>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center shrink-0 border border-teal-100">
-            <CheckCircle2 className="w-6 h-6" />
-          </div>
+          <p className="text-xs text-slate-500 font-medium">
+            {stats.statusCounts.completed} successful graduate{stats.statusCounts.completed === 1 ? "" : "s"}
+          </p>
         </div>
 
-        {/* Metric 4: Dropout Rate */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Dropout Rate
-            </p>
-            <p className="text-3xl font-extrabold text-slate-700">{stats.dropoutRate}%</p>
-            <p className="text-xs text-slate-500">{stats.statusCounts.dropped} dropped enrollments</p>
+        {/* KPI 4: Dropout Rate */}
+        <div className="space-y-1">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+            Dropout Rate
+          </p>
+          <div className="flex items-baseline space-x-2">
+            <span className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+              {stats.dropoutRate}%
+            </span>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100">
-            <Activity className="w-6 h-6" />
-          </div>
+          <p className="text-xs text-slate-500 font-medium">
+            {stats.statusCounts.dropped} dropped / withdrawn
+          </p>
         </div>
       </div>
 
-      {/* Main Charts & Data Sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Enrollment Trend Over Time */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200/80 shadow-xs space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2.5">
-              <div className="p-2 bg-teal-50 rounded-lg text-teal-700 border border-teal-100">
-                <TrendingUp className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-900 text-base">Enrollment Trend Over Time</h3>
-                <p className="text-xs text-slate-500">New participant enrollments registered per month</p>
-              </div>
+      {/* Main Section 1: Recharts Enrollment Trend Over Time Chart */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-6">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 bg-teal-50 rounded-xl text-teal-700 border border-teal-100">
+              <TrendingUp className="w-5 h-5" />
             </div>
-            <span className="text-xs font-semibold text-slate-400">Last 6 Months</span>
-          </div>
-
-          {/* Bar Chart Visualization */}
-          <div className="pt-2 pb-2">
-            <div className="h-56 flex items-end justify-between gap-2.5 sm:gap-5 border-b border-slate-200 pb-3 pt-6">
-              {stats.enrollmentTrend.map((item, idx) => {
-                const heightPercent = maxTrendCount > 0 ? (item.count / maxTrendCount) * 100 : 0;
-                return (
-                  <div key={idx} className="flex-1 h-full flex flex-col justify-end items-center group relative">
-                    {/* Tooltip on hover */}
-                    <div className="opacity-0 group-hover:opacity-100 transition absolute -top-8 bg-slate-900 text-white text-[11px] font-semibold py-1 px-2.5 rounded shadow-md pointer-events-none whitespace-nowrap z-20">
-                      {item.period}: {item.count} enrollment{item.count === 1 ? "" : "s"}
-                    </div>
-
-                    {/* Count pill badge above bar */}
-                    <div className="mb-1.5 h-4 flex items-center justify-center shrink-0">
-                      {item.count > 0 ? (
-                        <span className="text-[11px] font-bold text-teal-800 bg-teal-100 px-1.5 py-0.5 rounded shadow-2xs">
-                          {item.count}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-medium text-slate-300">0</span>
-                      )}
-                    </div>
-
-                    {/* Bar container */}
-                    <div className="w-full bg-slate-100/80 rounded-t-lg flex-1 max-h-[140px] flex items-end p-0.5 border border-slate-200/60 overflow-hidden">
-                      <div
-                        style={{ height: `${Math.max(heightPercent, item.count > 0 ? 15 : 5)}%` }}
-                        className={`w-full transition-all duration-500 rounded-t-md ${
-                          item.count > 0
-                            ? "bg-gradient-to-t from-teal-700 to-teal-500 group-hover:from-teal-600 group-hover:to-teal-400 shadow-xs"
-                            : "bg-slate-300/40"
-                        }`}
-                      />
-                    </div>
-
-                    <span className="text-[11px] font-semibold text-slate-600 mt-2 truncate w-full text-center shrink-0">
-                      {item.period}
-                    </span>
-                  </div>
-                );
-              })}
+            <div>
+              <h3 className="font-bold text-slate-900 text-base">Enrollment Trend Over Time</h3>
+              <p className="text-xs text-slate-500">Monthly breakdown of new participant enrollments</p>
             </div>
           </div>
+          <span className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-semibold rounded-md border border-slate-200">
+            Last 6 Months
+          </span>
         </div>
 
-        {/* Right Col: Program Status Distribution */}
-        <div className="bg-white p-6 rounded-xl border border-slate-200/80 shadow-xs space-y-6">
-          <div className="flex items-center space-x-2.5">
-            <div className="p-2 bg-slate-100 rounded-lg text-slate-700 border border-slate-200">
+        {/* Recharts Bar Chart Integration */}
+        <div className="h-64 w-full pt-2">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={stats.enrollmentTrend} margin={{ top: 15, right: 10, left: -20, bottom: 5 }}>
+              <defs>
+                <linearGradient id="tealGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#0d9488" stopOpacity={1} />
+                  <stop offset="100%" stopColor="#14b8a6" stopOpacity={0.7} />
+                </linearGradient>
+                <linearGradient id="emptyGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#cbd5e1" stopOpacity={0.5} />
+                  <stop offset="100%" stopColor="#e2e8f0" stopOpacity={0.3} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+              <XAxis
+                dataKey="period"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 11, fill: "#64748b", fontWeight: 500 }}
+                dy={10}
+              />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 11, fill: "#64748b" }}
+                allowDecimals={false}
+              />
+              <Tooltip content={<CustomChartTooltip />} cursor={{ fill: "rgba(241, 245, 249, 0.6)" }} />
+              <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={54}>
+                {stats.enrollmentTrend.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={entry.count > 0 ? "url(#tealGradient)" : "url(#emptyGradient)"}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Main Section 2: Side-by-Side Breakdown Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Program Status Distribution */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-5">
+          <div className="flex items-center space-x-2.5 pb-3 border-b border-slate-100">
+            <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600 border border-indigo-100">
               <PieChart className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 text-base">Program Status Breakdown</h3>
-              <p className="text-xs text-slate-500">Distribution by cohort operational state</p>
+              <h3 className="font-bold text-slate-900 text-sm">Program Status Breakdown</h3>
+              <p className="text-xs text-slate-500">Distribution by operational state</p>
             </div>
           </div>
 
-          <div className="space-y-4">
-            {/* Active Programs Bar */}
+          <div className="space-y-4 pt-1">
+            {/* Active Programs */}
             <div>
-              <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
-                <span className="flex items-center space-x-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+              <div className="flex justify-between text-xs font-semibold mb-1.5">
+                <span className="text-emerald-700 flex items-center space-x-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
                   <span>Active Programs</span>
                 </span>
-                <span>{stats.programStatusCounts.active}</span>
+                <span className="text-slate-900">{stats.programStatusCounts.active}</span>
               </div>
-              <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-emerald-500 rounded-full"
+                  className="bg-emerald-500 h-full rounded-full transition-all duration-500"
                   style={{
                     width: `${stats.totalPrograms > 0 ? (stats.programStatusCounts.active / stats.totalPrograms) * 100 : 0}%`,
                   }}
-                ></div>
+                />
               </div>
             </div>
 
-            {/* Upcoming Programs Bar */}
+            {/* Upcoming Programs */}
             <div>
-              <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
-                <span className="flex items-center space-x-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+              <div className="flex justify-between text-xs font-semibold mb-1.5">
+                <span className="text-indigo-700 flex items-center space-x-1.5">
+                  <span className="w-2 h-2 rounded-full bg-indigo-500" />
                   <span>Upcoming Programs</span>
                 </span>
-                <span>{stats.programStatusCounts.upcoming}</span>
+                <span className="text-slate-900">{stats.programStatusCounts.upcoming}</span>
               </div>
-              <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-blue-500 rounded-full"
+                  className="bg-indigo-500 h-full rounded-full transition-all duration-500"
                   style={{
                     width: `${stats.totalPrograms > 0 ? (stats.programStatusCounts.upcoming / stats.totalPrograms) * 100 : 0}%`,
                   }}
-                ></div>
+                />
               </div>
             </div>
 
-            {/* Completed Programs Bar */}
+            {/* Completed Programs */}
             <div>
-              <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
-                <span className="flex items-center space-x-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-teal-600"></span>
+              <div className="flex justify-between text-xs font-semibold mb-1.5">
+                <span className="text-teal-700 flex items-center space-x-1.5">
+                  <span className="w-2 h-2 rounded-full bg-teal-500" />
                   <span>Completed Programs</span>
                 </span>
-                <span>{stats.programStatusCounts.completed}</span>
+                <span className="text-slate-900">{stats.programStatusCounts.completed}</span>
               </div>
-              <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-teal-600 rounded-full"
+                  className="bg-teal-500 h-full rounded-full transition-all duration-500"
                   style={{
                     width: `${stats.totalPrograms > 0 ? (stats.programStatusCounts.completed / stats.totalPrograms) * 100 : 0}%`,
                   }}
-                ></div>
+                />
               </div>
             </div>
 
-            {/* Cancelled Programs Bar */}
+            {/* Cancelled Programs */}
             <div>
-              <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
-                <span className="flex items-center space-x-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+              <div className="flex justify-between text-xs font-semibold mb-1.5">
+                <span className="text-slate-500 flex items-center space-x-1.5">
+                  <span className="w-2 h-2 rounded-full bg-slate-400" />
                   <span>Cancelled Programs</span>
                 </span>
-                <span>{stats.programStatusCounts.cancelled}</span>
+                <span className="text-slate-900">{stats.programStatusCounts.cancelled}</span>
               </div>
-              <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-slate-400 rounded-full"
+                  className="bg-slate-400 h-full rounded-full transition-all duration-500"
                   style={{
                     width: `${stats.totalPrograms > 0 ? (stats.programStatusCounts.cancelled / stats.totalPrograms) * 100 : 0}%`,
                   }}
-                ></div>
+                />
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Enrollment Status Funnel Card */}
-      <div className="bg-white p-6 rounded-xl border border-slate-200/80 shadow-xs space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2.5">
-            <div className="p-2 bg-teal-50 rounded-lg text-teal-700 border border-teal-100">
-              <BarChart3 className="w-5 h-5" />
+        {/* Enrollment Status Funnel */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-5">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center space-x-2.5">
+              <div className="p-2 bg-teal-50 rounded-lg text-teal-700 border border-teal-100">
+                <BarChart3 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">Enrollment Status Breakdown</h3>
+                <p className="text-xs text-slate-500">Counts across Registered, Active, and Finished</p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-bold text-slate-900 text-base">Enrollment Status Breakdown</h3>
-              <p className="text-xs text-slate-500">
-                Detailed counts across Registered, Active, Completed, and Dropped statuses
-              </p>
+
+            <Link
+              href="/programs"
+              className="text-xs font-semibold text-teal-700 hover:text-teal-800 flex items-center space-x-1"
+            >
+              <span>Programs</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl text-center">
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Registered</p>
+              <p className="text-2xl font-black text-slate-900 mt-1">{stats.statusCounts.registered}</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">Initial signups</p>
             </div>
-          </div>
-          <Link
-            href="/programs"
-            className="inline-flex items-center space-x-1 text-xs font-semibold text-teal-700 hover:text-teal-800 transition"
-          >
-            <span>Manage Programs</span>
-            <ArrowUpRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
-          {/* Registered */}
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-center space-y-1">
-            <span className="text-xs font-semibold text-slate-500 uppercase">Registered</span>
-            <p className="text-2xl font-bold text-slate-900">{stats.statusCounts.registered}</p>
-            <p className="text-[11px] text-slate-500">Initial signups</p>
-          </div>
+            <div className="p-3.5 bg-teal-50/60 border border-teal-100 rounded-xl text-center">
+              <p className="text-[11px] font-semibold text-teal-700 uppercase tracking-wider">Active</p>
+              <p className="text-2xl font-black text-teal-900 mt-1">{stats.statusCounts.active}</p>
+              <p className="text-[10px] text-teal-700 mt-0.5">Currently studying</p>
+            </div>
 
-          {/* Active */}
-          <div className="p-4 bg-emerald-50/50 rounded-xl border border-emerald-200/60 text-center space-y-1">
-            <span className="text-xs font-semibold text-emerald-700 uppercase">Active</span>
-            <p className="text-2xl font-bold text-emerald-800">{stats.statusCounts.active}</p>
-            <p className="text-[11px] text-emerald-600">Currently studying</p>
-          </div>
+            <div className="p-3.5 bg-emerald-50/60 border border-emerald-100 rounded-xl text-center">
+              <p className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">Completed</p>
+              <p className="text-2xl font-black text-emerald-900 mt-1">{stats.statusCounts.completed}</p>
+              <p className="text-[10px] text-emerald-700 mt-0.5">Successfully finished</p>
+            </div>
 
-          {/* Completed */}
-          <div className="p-4 bg-teal-50/50 rounded-xl border border-teal-200/60 text-center space-y-1">
-            <span className="text-xs font-semibold text-teal-700 uppercase">Completed</span>
-            <p className="text-2xl font-bold text-teal-800">{stats.statusCounts.completed}</p>
-            <p className="text-[11px] text-teal-600">Successfully finished</p>
-          </div>
-
-          {/* Dropped */}
-          <div className="p-4 bg-amber-50/50 rounded-xl border border-amber-200/60 text-center space-y-1">
-            <span className="text-xs font-semibold text-amber-700 uppercase">Dropped</span>
-            <p className="text-2xl font-bold text-amber-800">{stats.statusCounts.dropped}</p>
-            <p className="text-[11px] text-amber-600">Withdrawn / Incomplete</p>
+            <div className="p-3.5 bg-amber-50/60 border border-amber-100 rounded-xl text-center">
+              <p className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider">Dropped</p>
+              <p className="text-2xl font-black text-amber-900 mt-1">{stats.statusCounts.dropped}</p>
+              <p className="text-[10px] text-amber-700 mt-0.5">Incomplete / Withdrawn</p>
+            </div>
           </div>
         </div>
       </div>

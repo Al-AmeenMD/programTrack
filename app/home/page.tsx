@@ -143,7 +143,10 @@ export default function HomePage() {
             </span>
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-700 mt-1">Health & Trends</p>
+            <p className="text-base font-bold text-slate-900 mt-1 flex items-center justify-between">
+              <span>Analytics</span>
+              <ArrowRight className="w-4 h-4 text-teal-600 opacity-0 group-hover:opacity-100 transition" />
+            </p>
             <p className="text-xs text-slate-500 mt-0.5 font-medium">Dashboard Reports</p>
           </div>
         </Link>

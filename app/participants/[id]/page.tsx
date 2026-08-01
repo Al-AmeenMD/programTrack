@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Edit, Trash2, Calendar, Mail, Phone, User, ShieldCheck, GraduationCap, AlertCircle, RefreshCw } from "lucide-react";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Modal, ConfirmDialog } from "@/components/ui/Dialog";
+import { EditParticipantModal } from "@/components/EditParticipantModal";
 
 type Course = {
   id: string;
@@ -478,142 +479,13 @@ export default function ParticipantDetailPage({ params }: RouteContext) {
         </div>
       </div>
 
-      {/* Edit Modal */}
-      <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Edit Participant Info">
-        <form onSubmit={handleEditSubmit} className="space-y-4">
-          {editError && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-md flex items-center space-x-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{editError}</span>
-            </div>
-          )}
-
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
-                First Name <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={editForm.first_name}
-                onChange={(e) => setEditForm({ ...editForm, first_name: e.target.value })}
-                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Middle Name</label>
-              <input
-                type="text"
-                value={editForm.middle_name}
-                onChange={(e) => setEditForm({ ...editForm, middle_name: e.target.value })}
-                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
-                Surname / Last Name <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={editForm.last_name}
-                onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })}
-                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
-                NIN Number <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={editForm.nin_number}
-                onChange={(e) => setEditForm({ ...editForm, nin_number: e.target.value })}
-                placeholder="11 numeric digits"
-                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700 font-mono"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Qualification</label>
-              <input
-                type="text"
-                value={editForm.qualification}
-                onChange={(e) => setEditForm({ ...editForm, qualification: e.target.value })}
-                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Email</label>
-              <input
-                type="email"
-                value={editForm.email}
-                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Phone</label>
-              <input
-                type="text"
-                value={editForm.phone}
-                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Gender</label>
-              <select
-                value={editForm.gender}
-                onChange={(e) => setEditForm({ ...editForm, gender: e.target.value })}
-                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-              >
-                <option value="">Select Gender</option>
-                <option value="female">Female</option>
-                <option value="male">Male</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Date of Birth</label>
-              <input
-                type="date"
-                value={editForm.date_of_birth}
-                onChange={(e) => setEditForm({ ...editForm, date_of_birth: e.target.value })}
-                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end space-x-2 pt-3 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => setIsEditOpen(false)}
-              className="px-3.5 py-1.5 rounded-md text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={editLoading}
-              className="px-4 py-1.5 rounded-md text-xs font-medium bg-teal-700 hover:bg-teal-800 text-white transition disabled:opacity-50 flex items-center space-x-1.5"
-            >
-              {editLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-              <span>Save Changes</span>
-            </button>
-          </div>
-        </form>
-      </Modal>
+      {/* Edit Participant Modal */}
+      <EditParticipantModal
+        isOpen={isEditOpen}
+        participant={participant}
+        onClose={() => setIsEditOpen(false)}
+        onSuccess={fetchParticipant}
+      />
 
       {/* Delete Confirmation Modal */}
       <ConfirmDialog

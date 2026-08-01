@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Search, UserPlus, Trash2, Eye, ChevronLeft, ChevronRight, AlertCircle, RefreshCw, Filter, X, RotateCcw } from "lucide-react";
 import { Modal, ConfirmDialog } from "@/components/ui/Dialog";
+import { AddParticipantModal } from "@/components/AddParticipantModal";
 import { useAuth } from "@/components/AuthProvider";
 
 type Participant = {
@@ -602,197 +603,13 @@ export default function ParticipantsPage() {
         )}
       </div>
 
-      {/* Add Participant Modal */}
-      <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="Add New Participant">
-        <form onSubmit={handleAddSubmit} className="space-y-4">
-          {addError && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-md flex items-center space-x-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{addError}</span>
-            </div>
-          )}
-
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
-                First Name <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={addForm.first_name}
-                onChange={(e) => setAddForm({ ...addForm, first_name: e.target.value })}
-                placeholder="Amina"
-                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
-                Middle Name (Opt)
-              </label>
-              <input
-                type="text"
-                value={addForm.middle_name}
-                onChange={(e) => setAddForm({ ...addForm, middle_name: e.target.value })}
-                placeholder="Bello"
-                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
-                Surname / Last Name <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={addForm.last_name}
-                onChange={(e) => setAddForm({ ...addForm, last_name: e.target.value })}
-                placeholder="Yusuf"
-                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
-                NIN Number <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={addForm.nin_number}
-                onChange={(e) => setAddForm({ ...addForm, nin_number: e.target.value })}
-                placeholder="e.g. 12345678901"
-                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700 font-mono"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
-                Qualification (Optional)
-              </label>
-              <input
-                type="text"
-                value={addForm.qualification}
-                onChange={(e) => setAddForm({ ...addForm, qualification: e.target.value })}
-                placeholder="e.g. B.Sc Computer Science"
-                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Email</label>
-              <input
-                type="email"
-                value={addForm.email}
-                onChange={(e) => setAddForm({ ...addForm, email: e.target.value })}
-                placeholder="fatima@example.com"
-                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Phone</label>
-              <input
-                type="text"
-                value={addForm.phone}
-                onChange={(e) => setAddForm({ ...addForm, phone: e.target.value })}
-                placeholder="+234..."
-                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Gender</label>
-              <select
-                value={addForm.gender}
-                onChange={(e) => setAddForm({ ...addForm, gender: e.target.value })}
-                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-              >
-                <option value="">Select Gender</option>
-                <option value="female">Female</option>
-                <option value="male">Male</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Date of Birth</label>
-              <input
-                type="date"
-                value={addForm.date_of_birth}
-                onChange={(e) => setAddForm({ ...addForm, date_of_birth: e.target.value })}
-                className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">
-              Enroll into Program (Optional)
-            </label>
-            <select
-              value={addForm.program_id}
-              onChange={(e) => setAddForm({ ...addForm, program_id: e.target.value })}
-              className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-            >
-              <option value="">Do not enroll into a program now</option>
-              {programs.map((prog) => (
-                <option key={prog.id} value={prog.id}>
-                  {prog.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {Boolean(addForm.program_id && (modalCoursesLoading || modalCourses.length > 0)) && (
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
-                Select Course / Track (Optional)
-              </label>
-              {modalCoursesLoading ? (
-                <div className="text-[11px] text-slate-500 flex items-center space-x-1.5 py-1">
-                  <RefreshCw className="w-3 h-3 animate-spin text-teal-700" />
-                  <span>Loading courses for program...</span>
-                </div>
-              ) : (
-                <select
-                  value={addForm.course_id}
-                  onChange={(e) => setAddForm({ ...addForm, course_id: e.target.value })}
-                  className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700 bg-teal-50/40"
-                >
-                  <option value="">Unassigned (No course/track selected)</option>
-                  {modalCourses.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-          )}
-
-          <div className="flex justify-end space-x-2 pt-3 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => setIsAddOpen(false)}
-              className="px-3.5 py-1.5 rounded-md text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={addLoading}
-              className="px-4 py-1.5 rounded-md text-xs font-medium bg-teal-700 hover:bg-teal-800 text-white transition disabled:opacity-50 flex items-center space-x-1.5"
-            >
-              {addLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-              <span>Save Participant</span>
-            </button>
-          </div>
-        </form>
-      </Modal>
+      {/* Shared Add Participant Modal */}
+      <AddParticipantModal
+        isOpen={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        onSuccess={fetchParticipants}
+        programs={programs}
+      />
 
       {/* Delete Confirmation Modal */}
       <ConfirmDialog

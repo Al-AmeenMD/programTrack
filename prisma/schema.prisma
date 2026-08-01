@@ -44,6 +44,8 @@ model Participant {
 
   enrollments   Enrollment[]
 
+  @@index([status])
+  @@index([created_at])
   @@map("participants")
 }
 
@@ -78,6 +80,7 @@ model Course {
   facilitator_courses   FacilitatorCourse[]
 
   @@map("courses")
+  @@index([program_id])
 }
 
 model Enrollment {
@@ -99,6 +102,11 @@ model Enrollment {
   certificate    Certificate?
 
   @@unique([participant_id, program_id])
+  @@index([program_id, status])
+  @@index([participant_id])
+  @@index([course_id])
+  @@index([status])
+  @@index([created_at])
   @@map("enrollments")
 }
 
@@ -149,6 +157,8 @@ model ProgramStaff {
   courses       FacilitatorCourse[]
 
   @@unique([staff_user_id, program_id])
+  @@index([staff_user_id])
+  @@index([program_id])
   @@map("program_staff")
 }
 
@@ -175,6 +185,7 @@ model Session {
   program      Program            @relation(fields: [program_id], references: [id], onDelete: Restrict)
   attendance   AttendanceRecord[]
 
+  @@index([program_id])
   @@map("sessions")
 }
 

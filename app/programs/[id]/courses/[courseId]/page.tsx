@@ -15,9 +15,12 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  Edit,
 } from "lucide-react";
 import { Modal, ConfirmDialog } from "@/components/ui/Dialog";
 import { StatusBadge } from "@/components/StatusBadge";
+import { EditParticipantModal, ParticipantToEdit } from "@/components/EditParticipantModal";
+import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import { useAuth } from "@/components/AuthProvider";
 
 type ProgramInfo = {
@@ -97,6 +100,9 @@ export default function CourseDetailPage({ params }: RouteContext) {
   // Drop Enrollment Confirmation State
   const [dropTarget, setDropTarget] = useState<Enrollment | null>(null);
   const [dropLoading, setDropLoading] = useState(false);
+
+  // Edit Participant Modal State
+  const [editParticipantTarget, setEditParticipantTarget] = useState<ParticipantToEdit | null>(null);
 
   const fetchProgramCourses = async () => {
     try {
@@ -423,38 +429,41 @@ export default function CourseDetailPage({ params }: RouteContext) {
                       <td className="py-2.5 px-4 text-slate-600">
                         {new Date(e.enrolled_at).toLocaleDateString()}
                       </td>
-                      <td className="py-2.5 px-4 text-right space-x-2">
-                        {programCourses.length > 0 && (
-                          <button
-                            onClick={() => {
-                              setChangeCourseTarget(e);
-                              setChangeCourseSelectedId(e.course_id || "");
-                            }}
-                            className="px-2 py-1 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded text-[11px] font-medium transition"
-                            title="Reassign or Change Course"
-                          >
-                            Change Course
-                          </button>
-                        )}
-                        <button
-                          onClick={() => {
-                            setUpdateEnrollmentTarget(e);
-                            setNewStatus(e.status);
-                          }}
-                          className="p-1 text-slate-500 hover:text-teal-700 inline-block"
-                          title="Change Status"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
-                        {e.status !== "dropped" && (
-                          <button
-                            onClick={() => setDropTarget(e)}
-                            className="p-1 text-slate-400 hover:text-rose-600 inline-block"
-                            title="Drop Enrollment"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
+                      <td className="py-2.5 px-4 text-right">
+                        <RowActionsMenu
+                          actions={[
+                            {
+                              label: "Edit Participant",
+                              icon: Edit,
+                              onClick: () => setEditParticipantTarget(e.participant),
+                              variant: "teal",
+                            },
+                            {
+                              label: "Change Course / Track",
+                              icon: BookOpen,
+                              onClick: () => {
+                                setChangeCourseTarget(e);
+                                setChangeCourseSelectedId(e.course_id || "");
+                              },
+                              hidden: programCourses.length === 0,
+                            },
+                            {
+                              label: "Change Status",
+                              icon: RefreshCw,
+                              onClick: () => {
+                                setUpdateEnrollmentTarget(e);
+                                setNewStatus(e.status);
+                              },
+                            },
+                            {
+                              label: "Drop Enrollment",
+                              icon: Trash2,
+                              onClick: () => setDropTarget(e),
+                              variant: "danger",
+                              hidden: e.status === "dropped",
+                            },
+                          ]}
+                        />
                       </td>
                     </tr>
                   ))}
@@ -599,6 +608,14 @@ export default function CourseDetailPage({ params }: RouteContext) {
           </div>
         </form>
       </Modal>
+
+      {/* Shared Edit Participant Modal */}
+      <EditParticipantModal
+        isOpen={Boolean(editParticipantTarget)}
+        participant={editParticipantTarget}
+        onClose={() => setEditParticipantTarget(null)}
+        onSuccess={fetchEnrollments}
+      />
     </div>
   );
 }

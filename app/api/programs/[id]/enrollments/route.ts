@@ -87,3 +87,56 @@ export async function GET(req: NextRequest, context: RouteContext) {
     return handleApiError(error);
   }
 }
+
+export async function POST(req: NextRequest, context: RouteContext) {
+  try {
+    const user = await requireAuth(req);
+    const { id: programId } = await context.params;
+
+    if (user.role === "facilitator") {
+      const assignedProgramIds = await getFacilitatorProgramIds(user.id);
+      if (!assignedProgramIds.includes(programId)) {
+        throw new ApiError("Forbidden: program not assigned to facilitator", 403);
+      }
+    }
+
+    const body = await req.json();
+
+    let firstName = body.first_name || "";
+    let middleName = body.middle_name || null;
+    let lastName = body.last_name || "";
+
+    if (!firstName && body.full_name) {
+      const parts = body.full_name.trim().split(/\s+/);
+      firstName = parts[0] || "";
+      lastName = parts.length > 1 ? parts.slice(1).join(" ") : "Participant";
+    }
+
+    if (!firstName) {
+      return NextResponse.json({ error: "First name is required" }, { status: 400 });
+    }
+
+    const participantData = {
+      first_name: firstName,
+      middle_name: middleName,
+      last_name: lastName || "Participant",
+      email: body.email || null,
+      phone: body.phone || null,
+      gender: body.gender || null,
+      date_of_birth: body.date_of_birth || null,
+      nin_number: body.nin_number || undefined,
+      qualification: body.qualification || null,
+    };
+
+    const { createOrEnrollParticipant } = await import("@/lib/participants/createOrEnrollParticipant");
+    const result = await createOrEnrollParticipant(
+      participantData,
+      programId,
+      body.course_id || null
+    );
+
+    return NextResponse.json({ data: result }, { status: 201 });
+  } catch (error) {
+    return handleApiError(error);
+  }
+}

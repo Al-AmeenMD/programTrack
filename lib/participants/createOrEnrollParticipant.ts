@@ -50,7 +50,7 @@ export async function createOrEnrollParticipant(
   const middleName = input.middle_name?.trim() || null;
   const lastName = input.last_name.trim();
   const fullName = [firstName, middleName, lastName].filter(Boolean).join(" ");
-  const ninNumber = input.nin_number.trim();
+  const ninNumber = input.nin_number?.trim() || "NIN-PENDING";
   const qualification = input.qualification?.trim() || null;
 
   const participant =
