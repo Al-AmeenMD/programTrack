@@ -4,6 +4,9 @@ import React, { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/Dialog";
 import { AlertCircle } from "lucide-react";
 
+const EMPTY_COURSES: { id: string; name: string }[] = [];
+const EMPTY_PROGRAMS: { id: string; name: string }[] = [];
+
 interface AddParticipantModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -20,8 +23,8 @@ export function AddParticipantModal({
   onSuccess,
   programId,
   courseId,
-  programs = [],
-  courses = [],
+  programs = EMPTY_PROGRAMS,
+  courses = EMPTY_COURSES,
 }: AddParticipantModalProps) {
   const [form, setForm] = useState({
     first_name: "",
@@ -37,7 +40,9 @@ export function AddParticipantModal({
     course_id: courseId || "",
   });
 
-  const [availableCourses, setAvailableCourses] = useState<{ id: string; name: string }[]>(courses);
+  const [availableCourses, setAvailableCourses] = useState<{ id: string; name: string }[]>(
+    courses.length > 0 ? courses : EMPTY_COURSES
+  );
   const [coursesLoading, setCoursesLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,22 +66,47 @@ export function AddParticipantModal({
     }
   }, [isOpen, programId, courseId]);
 
-  // Fetch courses dynamically if program_id changes and courses weren't passed in
+  // Sync availableCourses if courses prop is provided and non-empty
   useEffect(() => {
-    const activeProgramId = form.program_id || programId;
-    if (activeProgramId && courses.length === 0) {
-      setCoursesLoading(true);
-      fetch(`/api/programs/${activeProgramId}/courses`)
-        .then((res) => res.json())
-        .then((json) => {
-          setAvailableCourses(json.data || []);
-        })
-        .catch(() => setAvailableCourses([]))
-        .finally(() => setCoursesLoading(false));
-    } else {
+    if (courses.length > 0) {
       setAvailableCourses(courses);
     }
-  }, [form.program_id, programId, courses]);
+  }, [courses]);
+
+  // Fetch courses dynamically if program_id changes and courses prop is empty
+  useEffect(() => {
+    if (courses.length > 0) return;
+
+    const activeProgramId = form.program_id || programId;
+    if (!activeProgramId) {
+      setAvailableCourses(EMPTY_COURSES);
+      return;
+    }
+
+    let isMounted = true;
+    setCoursesLoading(true);
+    fetch(`/api/programs/${activeProgramId}/courses`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (isMounted) {
+          setAvailableCourses(json.data || EMPTY_COURSES);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setAvailableCourses(EMPTY_COURSES);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setCoursesLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [form.program_id, programId, courses.length]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
