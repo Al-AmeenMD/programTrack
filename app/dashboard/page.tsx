@@ -50,6 +50,9 @@ type DashboardStats = {
   completionRate: number;
   dropoutRate: number;
   enrollmentTrend: Array<{ period: string; count: number }>;
+  trendPeriod: "monthly" | "quarterly" | "biannual" | "annual";
+  totalTrendCount: number;
+  hasEnoughData: boolean;
 };
 
 // Custom Tooltip for Recharts
@@ -72,13 +75,17 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [chartLoading, setChartLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [trendPeriod, setTrendPeriod] = useState<"monthly" | "quarterly" | "biannual" | "annual">("monthly");
 
-  const fetchStats = async () => {
-    setLoading(true);
+  const fetchStats = async (period: string, isInitial = false) => {
+    if (isInitial) setLoading(true);
+    else setChartLoading(true);
+    
     setError(null);
     try {
-      const res = await fetch("/api/dashboard/stats");
+      const res = await fetch(`/api/dashboard/stats?trendPeriod=${period}`);
       if (!res.ok) {
         throw new Error("Failed to load dashboard statistics");
       }
@@ -88,12 +95,18 @@ export default function DashboardPage() {
       setError(err.message || "An error occurred");
     } finally {
       setLoading(false);
+      setChartLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchStats();
+    fetchStats(trendPeriod, true);
   }, []);
+
+  const handlePeriodChange = (newPeriod: "monthly" | "quarterly" | "biannual" | "annual") => {
+    setTrendPeriod(newPeriod);
+    fetchStats(newPeriod, false);
+  };
 
   const handleExportCsv = () => {
     if (!stats) return;
@@ -112,6 +125,7 @@ export default function DashboardPage() {
       { Metric: "Dropped Enrollments", Value: stats.statusCounts.dropped },
       { Metric: "Completion Rate (%)", Value: `${stats.completionRate}%` },
       { Metric: "Dropout Rate (%)", Value: `${stats.dropoutRate}%` },
+      { Metric: "Trend Period", Value: stats.trendPeriod },
     ];
 
     const today = new Date().toISOString().split("T")[0];
@@ -133,7 +147,7 @@ export default function DashboardPage() {
         <AlertTriangle className="w-8 h-8 text-rose-600 mx-auto" />
         <p className="text-sm font-semibold text-rose-900">{error || "Failed to load dashboard data"}</p>
         <button
-          onClick={fetchStats}
+          onClick={() => fetchStats(trendPeriod, true)}
           className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 rounded-lg hover:bg-rose-700 transition"
         >
           Retry
@@ -276,8 +290,8 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Main Section 1: Recharts Enrollment Trend Over Time Chart */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-6">
+      {/* Main Section 1: Recharts Enrollment Trend Over Time Chart with Functional Period Filter */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-6 relative">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div className="flex items-center space-x-3">
             <div className="p-2.5 bg-teal-50 rounded-xl text-teal-700 border border-teal-100">
@@ -285,53 +299,86 @@ export default function DashboardPage() {
             </div>
             <div>
               <h3 className="font-bold text-slate-900 text-base">Enrollment Trend Over Time</h3>
-              <p className="text-xs text-slate-500">Monthly breakdown of new participant enrollments</p>
+              <p className="text-xs text-slate-500">
+                {trendPeriod === "monthly" && "Monthly breakdown (Current Calendar Year: Jan–Dec)"}
+                {trendPeriod === "quarterly" && "Calendar quarter breakdown (last 8 quarters / 2 years)"}
+                {trendPeriod === "biannual" && "Half-year period breakdown (last 4 periods / 2 years)"}
+                {trendPeriod === "annual" && "Calendar year breakdown (last 5 years)"}
+              </p>
             </div>
           </div>
-          <span className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-semibold rounded-md border border-slate-200">
-            Last 6 Months
-          </span>
+
+          {/* Functional Server-Side Aggregation Period Selector */}
+          <div className="flex items-center space-x-2">
+            {chartLoading && <RefreshCw className="w-3.5 h-3.5 text-teal-600 animate-spin" />}
+            <select
+              value={trendPeriod}
+              onChange={(e) => handlePeriodChange(e.target.value as any)}
+              className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 cursor-pointer transition"
+            >
+              <option value="monthly">Monthly (Jan–Dec)</option>
+              <option value="quarterly">Quarterly (8Q)</option>
+              <option value="biannual">Biannually (4H)</option>
+              <option value="annual">Annually (5Y)</option>
+            </select>
+          </div>
         </div>
 
         {/* Recharts Bar Chart Integration */}
-        <div className="h-64 w-full pt-2">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={stats.enrollmentTrend} margin={{ top: 15, right: 10, left: -20, bottom: 5 }}>
-              <defs>
-                <linearGradient id="tealGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#0d9488" stopOpacity={1} />
-                  <stop offset="100%" stopColor="#14b8a6" stopOpacity={0.7} />
-                </linearGradient>
-                <linearGradient id="emptyGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#cbd5e1" stopOpacity={0.5} />
-                  <stop offset="100%" stopColor="#e2e8f0" stopOpacity={0.3} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-              <XAxis
-                dataKey="period"
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 11, fill: "#64748b", fontWeight: 500 }}
-                dy={10}
-              />
-              <YAxis
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 11, fill: "#64748b" }}
-                allowDecimals={false}
-              />
-              <Tooltip content={<CustomChartTooltip />} cursor={{ fill: "rgba(241, 245, 249, 0.6)" }} />
-              <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={54}>
-                {stats.enrollmentTrend.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={entry.count > 0 ? "url(#tealGradient)" : "url(#emptyGradient)"}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+        <div className="h-64 w-full pt-2 relative">
+          {chartLoading && (
+            <div className="absolute inset-0 bg-white/70 backdrop-blur-xs z-20 flex items-center justify-center">
+              <RefreshCw className="w-6 h-6 text-teal-600 animate-spin" />
+            </div>
+          )}
+
+          {!stats.hasEnoughData ? (
+            <div className="h-full w-full flex flex-col items-center justify-center bg-slate-50/60 rounded-xl border border-dashed border-slate-200 p-6 text-center space-y-1.5">
+              <BarChart3 className="w-8 h-8 text-slate-300" />
+              <p className="text-xs font-semibold text-slate-700">Insufficient Historical Data</p>
+              <p className="text-[11px] text-slate-500 max-w-sm">
+                No enrollment activity recorded within the selected {trendPeriod} lookback period.
+              </p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stats.enrollmentTrend} margin={{ top: 15, right: 10, left: -20, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="tealGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#0d9488" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#14b8a6" stopOpacity={0.7} />
+                  </linearGradient>
+                  <linearGradient id="emptyGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#cbd5e1" stopOpacity={0.5} />
+                    <stop offset="100%" stopColor="#e2e8f0" stopOpacity={0.3} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis
+                  dataKey="period"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 11, fill: "#64748b", fontWeight: 500 }}
+                  dy={10}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 11, fill: "#64748b" }}
+                  allowDecimals={false}
+                />
+                <Tooltip content={<CustomChartTooltip />} cursor={{ fill: "rgba(241, 245, 249, 0.6)" }} />
+                <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={54}>
+                  {stats.enrollmentTrend.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={entry.count > 0 ? "url(#tealGradient)" : "url(#emptyGradient)"}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
 
