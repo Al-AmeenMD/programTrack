@@ -92,6 +92,22 @@ export async function DELETE(req: NextRequest, context: RouteContext) {
     });
 
     if (programStaff) {
+      // Find course groups for this course
+      const courseGroups = await prisma.courseGroup.findMany({
+        where: { course_id },
+        select: { id: true },
+      });
+      const groupIds = courseGroups.map((g) => g.id);
+
+      if (groupIds.length > 0) {
+        await prisma.facilitatorGroup.deleteMany({
+          where: {
+            program_staff_id: programStaff.id,
+            course_group_id: { in: groupIds },
+          },
+        });
+      }
+
       await prisma.facilitatorCourse.deleteMany({
         where: {
           program_staff_id: programStaff.id,

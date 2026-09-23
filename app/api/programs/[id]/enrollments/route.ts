@@ -47,9 +47,16 @@ export async function GET(req: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: "Program not found" }, { status: 404 });
     }
 
+    const courseGroupId = searchParams.get("course_group_id");
+
     const where: Prisma.EnrollmentWhereInput = {
       program_id: id,
       ...(courseId ? { course_id: courseId } : {}),
+      ...(courseGroupId
+        ? courseGroupId === "unassigned"
+          ? { course_group_id: null }
+          : { course_group_id: courseGroupId }
+        : {}),
       ...(status && status !== "all"
         ? { status: status as (typeof allowedStatuses)[number] }
         : status === "all"
@@ -77,6 +84,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
           participant: true,
           program: true,
           course: true,
+          course_group: true,
         },
       }),
       prisma.enrollment.count({ where }),
@@ -132,7 +140,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const result = await createOrEnrollParticipant(
       participantData,
       programId,
-      body.course_id || null
+      body.course_id || null,
+      body.course_group_id || null
     );
 
     return NextResponse.json({ data: result }, { status: 201 });

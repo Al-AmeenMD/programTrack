@@ -48,6 +48,9 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         ...(body.course_id !== undefined && {
           course_id: body.course_id ? body.course_id : null,
         }),
+        ...(body.course_group_id !== undefined && {
+          course_group_id: body.course_group_id ? body.course_group_id : null,
+        }),
         ...(body.metadata !== undefined && {
           metadata: body.metadata as Prisma.InputJsonValue,
         }),
@@ -56,6 +59,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         participant: true,
         program: true,
         course: true,
+        course_group: true,
       },
     });
 

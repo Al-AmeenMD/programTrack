@@ -38,12 +38,15 @@ export function AddParticipantModal({
     date_of_birth: "",
     program_id: programId || "",
     course_id: courseId || "",
+    course_group_id: "",
   });
 
   const [availableCourses, setAvailableCourses] = useState<{ id: string; name: string }[]>(
     courses.length > 0 ? courses : EMPTY_COURSES
   );
+  const [availableGroups, setAvailableGroups] = useState<{ id: string; name: string }[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(false);
+  const [groupsLoading, setGroupsLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,6 +64,7 @@ export function AddParticipantModal({
         date_of_birth: "",
         program_id: programId || "",
         course_id: courseId || "",
+        course_group_id: "",
       });
       setError(null);
     }
@@ -108,6 +112,36 @@ export function AddParticipantModal({
     };
   }, [form.program_id, programId, courses.length]);
 
+  // Fetch groups whenever course_id changes
+  useEffect(() => {
+    const activeCourseId = form.course_id || courseId;
+    if (!activeCourseId) {
+      setAvailableGroups([]);
+      setForm((prev) => ({ ...prev, course_group_id: "" }));
+      return;
+    }
+
+    let isMounted = true;
+    setGroupsLoading(true);
+    fetch(`/api/courses/${activeCourseId}/groups`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (isMounted) {
+          setAvailableGroups(json.data || []);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setAvailableGroups([]);
+      })
+      .finally(() => {
+        if (isMounted) setGroupsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [form.course_id, courseId]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -137,6 +171,7 @@ export function AddParticipantModal({
         date_of_birth: form.date_of_birth || null,
         program_id: form.program_id || programId || undefined,
         course_id: form.course_id || courseId || undefined,
+        course_group_id: form.course_group_id || undefined,
       };
 
       const targetUrl = programId ? `/api/programs/${programId}/enrollments` : "/api/participants";
@@ -308,7 +343,7 @@ export function AddParticipantModal({
             </label>
             <select
               value={form.program_id}
-              onChange={(e) => setForm({ ...form, program_id: e.target.value, course_id: "" })}
+              onChange={(e) => setForm({ ...form, program_id: e.target.value, course_id: "", course_group_id: "" })}
               className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:ring-1 focus:ring-teal-500 outline-none bg-white"
             >
               <option value="">No Program (General Directory Only)</option>
@@ -329,7 +364,7 @@ export function AddParticipantModal({
             <select
               disabled={coursesLoading}
               value={form.course_id}
-              onChange={(e) => setForm({ ...form, course_id: e.target.value })}
+              onChange={(e) => setForm({ ...form, course_id: e.target.value, course_group_id: "" })}
               className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:ring-1 focus:ring-teal-500 outline-none bg-white disabled:opacity-50"
             >
               <option value="">No Specific Course (Program Level)</option>
@@ -342,19 +377,41 @@ export function AddParticipantModal({
           </div>
         )}
 
+        {/* Group Selector when course is selected and groups are available */}
+        {(availableGroups.length > 0 || groupsLoading) && form.course_id && (
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Assign to Track Group
+            </label>
+            <select
+              disabled={groupsLoading}
+              value={form.course_group_id}
+              onChange={(e) => setForm({ ...form, course_group_id: e.target.value })}
+              className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:ring-1 focus:ring-teal-500 outline-none bg-white disabled:opacity-50"
+            >
+              <option value="">Unassigned (No specific group)</option>
+              {availableGroups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* Form Actions */}
         <div className="flex justify-end space-x-2 pt-3 border-t border-slate-200">
           <button
             type="button"
             onClick={onClose}
-            className="px-3.5 py-1.5 border border-slate-300 text-slate-700 text-xs font-medium rounded-md hover:bg-slate-50 transition"
+            className="px-3.5 py-1.5 border border-slate-300 text-slate-700 text-xs font-medium rounded-md hover:bg-slate-50 transition cursor-pointer"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="px-4 py-1.5 bg-teal-700 hover:bg-teal-800 text-white text-xs font-medium rounded-md shadow-xs transition disabled:opacity-50 flex items-center space-x-1"
+            className="px-4 py-1.5 bg-teal-700 hover:bg-teal-800 text-white text-xs font-medium rounded-md shadow-xs transition disabled:opacity-50 flex items-center space-x-1 cursor-pointer"
           >
             {loading ? "Enrolling Participant..." : programId ? "Enroll Participant" : "Add Participant"}
           </button>

@@ -54,6 +54,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
           },
         },
         course: true,
+        course_group: true,
       },
       orderBy: {
         created_at: "asc",
@@ -66,6 +67,20 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     const attendanceMap = new Map(attendanceRecords.map((r) => [r.enrollment_id, r]));
 
+    let facilitatorAssignedGroupIds: string[] = [];
+    if (user.role === "facilitator") {
+      const facilitatorGroups = await prisma.facilitatorGroup.findMany({
+        where: {
+          program_staff: {
+            staff_user_id: user.id,
+            program_id: session.program_id,
+          },
+        },
+        select: { course_group_id: true },
+      });
+      facilitatorAssignedGroupIds = facilitatorGroups.map((g) => g.course_group_id);
+    }
+
     const result = enrollments.map((en) => {
       const record = attendanceMap.get(en.id);
       return {
@@ -73,6 +88,8 @@ export async function GET(req: NextRequest, context: RouteContext) {
         participant: en.participant,
         course_id: en.course_id,
         course: en.course,
+        course_group_id: en.course_group_id,
+        course_group: en.course_group,
         enrollment_status: en.status,
         attendance_record: record
           ? {
@@ -85,7 +102,12 @@ export async function GET(req: NextRequest, context: RouteContext) {
       };
     });
 
-    return NextResponse.json({ data: result });
+    return NextResponse.json({
+      data: result,
+      meta: {
+        facilitator_assigned_group_ids: facilitatorAssignedGroupIds,
+      },
+    });
   } catch (error) {
     return handleApiError(error);
   }

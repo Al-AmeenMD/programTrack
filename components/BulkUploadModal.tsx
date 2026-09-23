@@ -20,6 +20,7 @@ type PreviewRow = {
   gender: string | null;
   date_of_birth: string | null;
   course_name?: string | null;
+  group_name?: string | null;
   action: "new_participant" | "new_enrollment" | "skip";
   skip_reason: string | null;
 };
@@ -146,6 +147,7 @@ export function BulkUploadModal({
   };
 
   const hasCourseColumn = preview?.rows.some((r) => r.course_name);
+  const hasGroupColumn = preview?.rows.some((r) => r.group_name);
 
   return (
     <Modal
@@ -186,7 +188,7 @@ export function BulkUploadModal({
             <p className="text-xs text-slate-600">
               Select a CSV file containing participant records. Expected headers:{" "}
               <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800 font-mono text-[11px] block mt-1 break-all">
-                first_name, middle_name, last_name, nin_number, qualification, email, phone, gender, date_of_birth, course_name
+                first_name, middle_name, last_name, nin_number, qualification, email, phone, gender, date_of_birth, course_name, group
               </code>
             </p>
 
@@ -217,7 +219,7 @@ export function BulkUploadModal({
               <button
                 type="button"
                 onClick={handleClose}
-                className="px-3.5 py-1.5 rounded-md text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
+                className="px-3.5 py-1.5 rounded-md text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -225,7 +227,7 @@ export function BulkUploadModal({
                 type="button"
                 onClick={handlePreview}
                 disabled={!file || loading}
-                className="px-4 py-1.5 rounded-md text-xs font-medium bg-teal-700 hover:bg-teal-800 text-white transition disabled:opacity-50 flex items-center space-x-1.5"
+                className="px-4 py-1.5 rounded-md text-xs font-medium bg-teal-700 hover:bg-teal-800 text-white transition disabled:opacity-50 flex items-center space-x-1.5 cursor-pointer"
               >
                 {loading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
                 <span>Preview Dry Run</span>
@@ -272,6 +274,7 @@ export function BulkUploadModal({
                     <th className="py-2 px-3">Name</th>
                     <th className="py-2 px-3">Contact</th>
                     {hasCourseColumn && <th className="py-2 px-3">Course / Track</th>}
+                    {hasGroupColumn && <th className="py-2 px-3">Group</th>}
                     <th className="py-2 px-3">Action Preview</th>
                     <th className="py-2 px-3">Reason / Details</th>
                   </tr>
@@ -289,6 +292,11 @@ export function BulkUploadModal({
                       {hasCourseColumn && (
                         <td className="py-2 px-3 text-slate-700 font-medium">
                           {r.course_name || "—"}
+                        </td>
+                      )}
+                      {hasGroupColumn && (
+                        <td className="py-2 px-3 text-slate-700 font-medium">
+                          {r.group_name || "—"}
                         </td>
                       )}
                       <td className="py-2 px-3">

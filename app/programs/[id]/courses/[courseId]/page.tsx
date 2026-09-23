@@ -16,6 +16,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Edit,
+  Plus,
+  Layers,
+  ShieldCheck,
 } from "lucide-react";
 import { Modal, ConfirmDialog } from "@/components/ui/Dialog";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -40,6 +43,19 @@ type CourseDetail = {
   };
 };
 
+type CourseGroup = {
+  id: string;
+  course_id: string;
+  name: string;
+  created_at: string;
+  participant_count: number;
+  facilitators: Array<{
+    id: string;
+    full_name: string;
+    email: string;
+  }>;
+};
+
 type Participant = {
   id: string;
   full_name: string;
@@ -53,6 +69,8 @@ type Enrollment = {
   participant_id: string;
   program_id: string;
   course_id: string | null;
+  course_group_id: string | null;
+  course_group?: { id: string; name: string } | null;
   status: string;
   enrolled_at: string;
   participant: Participant;
@@ -74,17 +92,37 @@ export default function CourseDetailPage({ params }: RouteContext) {
   const isAdmin = user?.role === "admin";
 
   const [course, setCourse] = useState<CourseDetail | null>(null);
+  const [groups, setGroups] = useState<CourseGroup[]>([]);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [groupsLoading, setGroupsLoading] = useState(false);
   const [enrollmentsLoading, setEnrollmentsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Search & Pagination
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [groupFilter, setGroupFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [pageSize] = useState(15);
   const [total, setTotal] = useState(0);
+
+  // Group Management Modals State
+  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [createGroupLoading, setCreateGroupLoading] = useState(false);
+
+  const [editGroupTarget, setEditGroupTarget] = useState<CourseGroup | null>(null);
+  const [editGroupName, setEditGroupName] = useState("");
+  const [editGroupLoading, setEditGroupLoading] = useState(false);
+
+  const [deleteGroupTarget, setDeleteGroupTarget] = useState<CourseGroup | null>(null);
+  const [deleteGroupLoading, setDeleteGroupLoading] = useState(false);
+
+  // Assign Group Modal State
+  const [assignGroupTarget, setAssignGroupTarget] = useState<Enrollment | null>(null);
+  const [assignGroupSelectedId, setAssignGroupSelectedId] = useState("");
+  const [assignGroupLoading, setAssignGroupLoading] = useState(false);
 
   // Update Enrollment Status State
   const [updateEnrollmentTarget, setUpdateEnrollmentTarget] = useState<Enrollment | null>(null);
@@ -101,44 +139,8 @@ export default function CourseDetailPage({ params }: RouteContext) {
   const [dropTarget, setDropTarget] = useState<Enrollment | null>(null);
   const [dropLoading, setDropLoading] = useState(false);
 
-  // Edit Participant Modal State
+  // Edit Participant Target State
   const [editParticipantTarget, setEditParticipantTarget] = useState<ParticipantToEdit | null>(null);
-
-  const fetchProgramCourses = async () => {
-    try {
-      const res = await fetch(`/api/programs/${programId}/courses`);
-      const json = await res.json();
-      if (res.ok) setProgramCourses(json.data || []);
-    } catch {
-      // Ignore
-    }
-  };
-
-  const handleChangeCourseSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!changeCourseTarget) return;
-
-    setChangeCourseLoading(true);
-    try {
-      const res = await fetch(`/api/enrollments/${changeCourseTarget.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ course_id: changeCourseSelectedId || null }),
-      });
-
-      if (!res.ok) {
-        const json = await res.json();
-        throw new Error(json.error || "Failed to update enrollment course");
-      }
-
-      setChangeCourseTarget(null);
-      await fetchEnrollments(true);
-    } catch (err: unknown) {
-      alert((err as { message?: string }).message || "Failed to update course");
-    } finally {
-      setChangeCourseLoading(false);
-    }
-  };
 
   const fetchCourseData = async () => {
     try {
@@ -151,6 +153,30 @@ export default function CourseDetailPage({ params }: RouteContext) {
     }
   };
 
+  const fetchGroups = async () => {
+    setGroupsLoading(true);
+    try {
+      const res = await fetch(`/api/courses/${courseId}/groups`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to load groups");
+      setGroups(json.data || []);
+    } catch (err: unknown) {
+      console.error("Failed to load course groups:", err);
+    } finally {
+      setGroupsLoading(false);
+    }
+  };
+
+  const fetchProgramCourses = async () => {
+    try {
+      const res = await fetch(`/api/programs/${programId}/courses`);
+      const json = await res.json();
+      if (res.ok) setProgramCourses(json.data || []);
+    } catch {
+      // Ignore
+    }
+  };
+
   const fetchEnrollments = async (silent = false) => {
     if (!silent) setEnrollmentsLoading(true);
     try {
@@ -159,6 +185,7 @@ export default function CourseDetailPage({ params }: RouteContext) {
         page: page.toString(),
         pageSize: pageSize.toString(),
         status: statusFilter,
+        ...(groupFilter !== "all" ? { course_group_id: groupFilter } : {}),
         ...(search.trim() ? { search: search.trim() } : {}),
       });
 
@@ -179,7 +206,7 @@ export default function CourseDetailPage({ params }: RouteContext) {
     const init = async () => {
       setLoading(true);
       setError(null);
-      await Promise.all([fetchCourseData(), fetchProgramCourses()]);
+      await Promise.all([fetchCourseData(), fetchGroups(), fetchProgramCourses()]);
       await fetchEnrollments(true);
       setLoading(false);
     };
@@ -190,7 +217,106 @@ export default function CourseDetailPage({ params }: RouteContext) {
     if (!loading) {
       fetchEnrollments();
     }
-  }, [page, search, statusFilter]);
+  }, [page, search, statusFilter, groupFilter]);
+
+  const handleCreateGroupSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newGroupName.trim()) return;
+
+    setCreateGroupLoading(true);
+    try {
+      const res = await fetch(`/api/courses/${courseId}/groups`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newGroupName.trim() }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to create group");
+
+      setNewGroupName("");
+      setIsCreateGroupOpen(false);
+      await fetchGroups();
+    } catch (err: unknown) {
+      alert((err as { message?: string }).message || "Failed to create group");
+    } finally {
+      setCreateGroupLoading(false);
+    }
+  };
+
+  const handleEditGroupSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editGroupTarget || !editGroupName.trim()) return;
+
+    setEditGroupLoading(true);
+    try {
+      const res = await fetch(`/api/courses/${courseId}/groups/${editGroupTarget.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: editGroupName.trim() }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to update group");
+
+      setEditGroupTarget(null);
+      await fetchGroups();
+      await fetchEnrollments(true);
+    } catch (err: unknown) {
+      alert((err as { message?: string }).message || "Failed to update group");
+    } finally {
+      setEditGroupLoading(false);
+    }
+  };
+
+  const handleDeleteGroupConfirm = async () => {
+    if (!deleteGroupTarget) return;
+
+    setDeleteGroupLoading(true);
+    try {
+      const res = await fetch(`/api/courses/${courseId}/groups/${deleteGroupTarget.id}`, {
+        method: "DELETE",
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to delete group");
+
+      setDeleteGroupTarget(null);
+      await fetchGroups();
+      await fetchEnrollments(true);
+    } catch (err: unknown) {
+      alert((err as { message?: string }).message || "Failed to delete group");
+    } finally {
+      setDeleteGroupLoading(false);
+    }
+  };
+
+  const handleAssignGroupSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assignGroupTarget) return;
+
+    setAssignGroupLoading(true);
+    try {
+      const res = await fetch(`/api/enrollments/${assignGroupTarget.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          course_group_id: assignGroupSelectedId || null,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to update group assignment");
+
+      setAssignGroupTarget(null);
+      await fetchGroups();
+      await fetchEnrollments(true);
+    } catch (err: unknown) {
+      alert((err as { message?: string }).message || "Failed to update group assignment");
+    } finally {
+      setAssignGroupLoading(false);
+    }
+  };
 
   const handleUpdateStatusConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -217,6 +343,35 @@ export default function CourseDetailPage({ params }: RouteContext) {
     }
   };
 
+  const handleChangeCourseSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!changeCourseTarget) return;
+
+    setChangeCourseLoading(true);
+    try {
+      const res = await fetch(`/api/enrollments/${changeCourseTarget.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          course_id: changeCourseSelectedId || null,
+          course_group_id: null, // Reset group on course change
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to update course assignment");
+
+      setChangeCourseTarget(null);
+      await fetchCourseData();
+      await fetchGroups();
+      await fetchEnrollments(true);
+    } catch (err: unknown) {
+      alert((err as { message?: string }).message || "Failed to update course assignment");
+    } finally {
+      setChangeCourseLoading(false);
+    }
+  };
+
   const handleDropEnrollmentConfirm = async () => {
     if (!dropTarget) return;
 
@@ -233,6 +388,7 @@ export default function CourseDetailPage({ params }: RouteContext) {
 
       setDropTarget(null);
       await fetchCourseData();
+      await fetchGroups();
       await fetchEnrollments(true);
     } catch (err: unknown) {
       alert((err as { message?: string }).message || "Failed to drop enrollment");
@@ -326,6 +482,13 @@ export default function CourseDetailPage({ params }: RouteContext) {
           </span>
         </div>
         <div className="border-l border-slate-200 pl-8">
+          <span className="text-slate-400 font-medium block text-[11px]">Track Groups</span>
+          <span className="text-sm font-bold text-slate-900 flex items-center space-x-1 mt-0.5">
+            <Layers className="w-4 h-4 text-teal-700" />
+            <span>{groups.length} configured</span>
+          </span>
+        </div>
+        <div className="border-l border-slate-200 pl-8">
           <span className="text-slate-400 font-medium block text-[11px]">Program Status</span>
           <div className="mt-0.5">
             <StatusBadge status={course.program?.status || "active"} />
@@ -340,17 +503,101 @@ export default function CourseDetailPage({ params }: RouteContext) {
         </div>
       </div>
 
+      {/* Course Groups Section */}
+      <div className="bg-white p-4 sm:p-5 rounded-lg border border-slate-200 shadow-xs space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <h2 className="text-sm font-bold text-slate-900 tracking-tight flex items-center space-x-2">
+              <Layers className="w-4 h-4 text-teal-700" />
+              <span>Track Groups ({groups.length})</span>
+            </h2>
+            <p className="text-xs text-slate-500">
+              Subdivide this course track into cohorts for dedicated facilitator assignment and scoped attendance.
+            </p>
+          </div>
+          {isAdmin && (
+            <button
+              onClick={() => {
+                setNewGroupName("");
+                setIsCreateGroupOpen(true);
+              }}
+              className="px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white text-xs font-medium rounded-md transition flex items-center space-x-1.5 shadow-xs cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>New Group</span>
+            </button>
+          )}
+        </div>
+
+        {groupsLoading ? (
+          <div className="py-4 text-center text-xs text-slate-500 flex items-center justify-center space-x-2">
+            <RefreshCw className="w-3.5 h-3.5 animate-spin text-teal-700" />
+            <span>Loading groups...</span>
+          </div>
+        ) : groups.length === 0 ? (
+          <div className="p-4 bg-slate-50 rounded-md border border-dashed border-slate-200 text-center text-xs text-slate-500">
+            No groups configured for this course track yet. Click &quot;New Group&quot; to divide students into groups.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {groups.map((g) => (
+              <div
+                key={g.id}
+                className="p-3.5 rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-white hover:border-teal-300 transition space-y-2.5"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs text-slate-900">{g.name}</span>
+                  <span className="text-[11px] font-semibold px-2 py-0.5 bg-teal-100 text-teal-800 rounded-full">
+                    {g.participant_count} students
+                  </span>
+                </div>
+
+                <div className="text-[11px] text-slate-500 flex items-center space-x-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span className="truncate">
+                    {g.facilitators.length > 0
+                      ? g.facilitators.map((f) => f.full_name).join(", ")
+                      : "No facilitator assigned"}
+                  </span>
+                </div>
+
+                {isAdmin && (
+                  <div className="flex items-center justify-end space-x-2 pt-1 border-t border-slate-200/60 text-xs">
+                    <button
+                      onClick={() => {
+                        setEditGroupTarget(g);
+                        setEditGroupName(g.name);
+                      }}
+                      className="text-slate-500 hover:text-teal-700 font-medium text-[11px] transition cursor-pointer"
+                    >
+                      Rename
+                    </button>
+                    <span className="text-slate-300">•</span>
+                    <button
+                      onClick={() => setDeleteGroupTarget(g)}
+                      className="text-rose-500 hover:text-rose-700 font-medium text-[11px] transition cursor-pointer"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Course Enrolled Participants Section */}
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h2 className="text-sm font-bold text-slate-900 tracking-tight flex items-center space-x-2">
-            <span>Enrolled Participants in {course.name}</span>
+            <span>Enrolled Participants</span>
             <span className="px-2 py-0.5 bg-slate-100 rounded text-slate-600 text-xs font-normal">
               {total} total
             </span>
           </h2>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
             {/* Search Input */}
             <div className="relative">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
@@ -365,6 +612,26 @@ export default function CourseDetailPage({ params }: RouteContext) {
                 className="pl-8 pr-3 py-1 border border-slate-300 rounded-md text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
               />
             </div>
+
+            {/* Group Filter Dropdown */}
+            {groups.length > 0 && (
+              <select
+                value={groupFilter}
+                onChange={(e) => {
+                  setGroupFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="px-2.5 py-1 border border-slate-300 rounded-md text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+              >
+                <option value="all">All Groups</option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+                <option value="unassigned">Unassigned Group</option>
+              </select>
+            )}
 
             {/* Status Filter Dropdown */}
             <select
@@ -403,6 +670,7 @@ export default function CourseDetailPage({ params }: RouteContext) {
                     <th className="py-2.5 px-4">Participant Name</th>
                     <th className="py-2.5 px-4">Email</th>
                     <th className="py-2.5 px-4">Phone</th>
+                    <th className="py-2.5 px-4">Group</th>
                     <th className="py-2.5 px-4">Enrollment Status</th>
                     <th className="py-2.5 px-4">Enrolled Date</th>
                     <th className="py-2.5 px-4 text-right">Actions</th>
@@ -424,6 +692,15 @@ export default function CourseDetailPage({ params }: RouteContext) {
                         {e.participant.phone || "—"}
                       </td>
                       <td className="py-2.5 px-4">
+                        {e.course_group ? (
+                          <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-800 border border-slate-200">
+                            {e.course_group.name}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 italic">Unassigned</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-4">
                         <StatusBadge status={e.status} />
                       </td>
                       <td className="py-2.5 px-4 text-slate-600">
@@ -437,6 +714,15 @@ export default function CourseDetailPage({ params }: RouteContext) {
                               icon: Edit,
                               onClick: () => setEditParticipantTarget(e.participant),
                               variant: "teal",
+                            },
+                            {
+                              label: "Assign Group",
+                              icon: Layers,
+                              onClick: () => {
+                                setAssignGroupTarget(e);
+                                setAssignGroupSelectedId(e.course_group_id || "");
+                              },
+                              hidden: groups.length === 0,
                             },
                             {
                               label: "Change Course / Track",
@@ -501,6 +787,148 @@ export default function CourseDetailPage({ params }: RouteContext) {
           )}
         </div>
       </div>
+
+      {/* Create Group Modal */}
+      <Modal
+        isOpen={isCreateGroupOpen}
+        onClose={() => setIsCreateGroupOpen(false)}
+        title="Create New Course Group"
+      >
+        <form onSubmit={handleCreateGroupSubmit} className="space-y-4">
+          <p className="text-xs text-slate-600">
+            Add a new group (e.g. <span className="font-semibold text-slate-800">Group A</span>, <span className="font-semibold text-slate-800">Group B</span>) to{" "}
+            <span className="font-semibold text-teal-700">{course.name}</span>.
+          </p>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1">
+              Group Name *
+            </label>
+            <input
+              type="text"
+              required
+              value={newGroupName}
+              onChange={(e) => setNewGroupName(e.target.value)}
+              placeholder="e.g. Group A"
+              className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+            />
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setIsCreateGroupOpen(false)}
+              className="px-3.5 py-1.5 rounded-md text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={createGroupLoading || !newGroupName.trim()}
+              className="px-4 py-1.5 rounded-md text-xs font-medium bg-teal-700 hover:bg-teal-800 text-white transition disabled:opacity-50 flex items-center space-x-1.5"
+            >
+              {createGroupLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+              <span>Create Group</span>
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit / Rename Group Modal */}
+      <Modal
+        isOpen={Boolean(editGroupTarget)}
+        onClose={() => setEditGroupTarget(null)}
+        title={`Rename Group — ${editGroupTarget?.name}`}
+      >
+        <form onSubmit={handleEditGroupSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1">
+              Group Name *
+            </label>
+            <input
+              type="text"
+              required
+              value={editGroupName}
+              onChange={(e) => setEditGroupName(e.target.value)}
+              className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+            />
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setEditGroupTarget(null)}
+              className="px-3.5 py-1.5 rounded-md text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={editGroupLoading || !editGroupName.trim()}
+              className="px-4 py-1.5 rounded-md text-xs font-medium bg-teal-700 hover:bg-teal-800 text-white transition disabled:opacity-50 flex items-center space-x-1.5"
+            >
+              {editGroupLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+              <span>Save Name</span>
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Delete Group Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={Boolean(deleteGroupTarget)}
+        onClose={() => setDeleteGroupTarget(null)}
+        onConfirm={handleDeleteGroupConfirm}
+        title="Delete Course Group"
+        description={`Are you sure you want to delete "${deleteGroupTarget?.name}"? Participants in this group will remain enrolled in the course, but their group will be set to unassigned.`}
+        isLoading={deleteGroupLoading}
+        confirmLabel="Delete Group"
+      />
+
+      {/* Assign Group Modal */}
+      <Modal
+        isOpen={Boolean(assignGroupTarget)}
+        onClose={() => setAssignGroupTarget(null)}
+        title={`Assign Group — ${assignGroupTarget?.participant.full_name}`}
+      >
+        <form onSubmit={handleAssignGroupSubmit} className="space-y-4 text-xs">
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1">
+              Select Group for {course.name}
+            </label>
+            <select
+              value={assignGroupSelectedId}
+              onChange={(e) => setAssignGroupSelectedId(e.target.value)}
+              className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+            >
+              <option value="">Unassigned (No group)</option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name} ({g.participant_count} students)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setAssignGroupTarget(null)}
+              className="px-3.5 py-1.5 rounded-md text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={assignGroupLoading}
+              className="px-4 py-1.5 rounded-md text-xs font-medium bg-teal-700 hover:bg-teal-800 text-white transition disabled:opacity-50 flex items-center space-x-1.5"
+            >
+              {assignGroupLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+              <span>Save Group Assignment</span>
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Change Status Modal */}
       <Modal

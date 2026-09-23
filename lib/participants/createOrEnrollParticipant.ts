@@ -18,7 +18,8 @@ export type CreateOrEnrollParticipantInput = {
 export async function createOrEnrollParticipant(
   input: CreateOrEnrollParticipantInput,
   programId?: string,
-  courseId?: string | null
+  courseId?: string | null,
+  courseGroupId?: string | null
 ) {
   const email = input.email?.trim() || null;
   const phone = input.phone?.trim() || null;
@@ -103,6 +104,21 @@ export async function createOrEnrollParticipant(
     }
   }
 
+  // If courseGroupId is provided, validate it belongs to courseId
+  if (courseGroupId) {
+    if (!courseId) {
+      throw new ApiError("Course is required when specifying a course group", 400);
+    }
+    const courseGroup = await prisma.courseGroup.findUnique({
+      where: { id: courseGroupId },
+      select: { id: true, course_id: true },
+    });
+
+    if (!courseGroup || courseGroup.course_id !== courseId) {
+      throw new ApiError("Course group does not belong to the specified course", 400);
+    }
+  }
+
   const intakeTemplate = await prisma.formTemplate.findFirst({
     where: {
       program_id: programId,
@@ -139,6 +155,7 @@ export async function createOrEnrollParticipant(
       participant_id: participant.id,
       program_id: programId,
       course_id: courseId || null,
+      course_group_id: courseGroupId || null,
       status: "registered",
     },
   });

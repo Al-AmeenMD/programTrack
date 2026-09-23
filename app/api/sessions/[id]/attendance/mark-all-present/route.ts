@@ -62,12 +62,27 @@ export async function POST(req: NextRequest, context: RouteContext) {
     });
     const existingRecordMap = new Map(existingRecords.map((r) => [r.enrollment_id, r]));
 
-    // Query all active enrollments in the program
+    // Query active enrollments in the program, optionally scoped to course and group
+    const whereClause: {
+      program_id: string;
+      status: { in: EnrollmentStatus[] };
+      course_id?: string;
+      course_group_id?: string;
+    } = {
+      program_id: session.program_id,
+      status: { in: [EnrollmentStatus.registered, EnrollmentStatus.active, EnrollmentStatus.completed] },
+    };
+
+    if (body.course_id) {
+      whereClause.course_id = body.course_id;
+    }
+
+    if (body.course_group_id) {
+      whereClause.course_group_id = body.course_group_id;
+    }
+
     const activeEnrollments = await prisma.enrollment.findMany({
-      where: {
-        program_id: session.program_id,
-        status: { in: [EnrollmentStatus.registered, EnrollmentStatus.active, EnrollmentStatus.completed] },
-      },
+      where: whereClause,
       select: { id: true },
     });
 

@@ -16,6 +16,7 @@ export type RawCsvRow = {
   date_of_birth?: string;
   course_name?: string;
   course_id?: string;
+  group_name?: string;
 };
 
 export type PreviewRowAction = "new_participant" | "new_enrollment" | "skip";
@@ -31,6 +32,7 @@ export type PreviewRowResult = {
   gender: string | null;
   date_of_birth: string | null;
   course_name: string | null;
+  group_name: string | null;
   action: PreviewRowAction;
   skip_reason: string | null;
 };
@@ -112,6 +114,7 @@ export function parseCsvString(csvContent: string): RawCsvRow[] {
       date_of_birth: row.date_of_birth?.trim() || row["dob"]?.trim() || "",
       course_name: row.course_name?.trim() || row["course"]?.trim() || row["track"]?.trim() || "",
       course_id: row.course_id?.trim() || "",
+      group_name: row.group_name?.trim() || row["group"]?.trim() || row["course_group"]?.trim() || "",
     };
   });
 }
@@ -131,6 +134,9 @@ export async function previewBulkUpload(
 
   const programCourses = await prisma.course.findMany({
     where: { program_id: programId },
+    include: {
+      groups: true,
+    },
   });
   const courseMapByName = new Map(programCourses.map((c) => [c.name.trim().toLowerCase(), c]));
   const courseMapById = new Map(programCourses.map((c) => [c.id, c]));
@@ -158,9 +164,11 @@ export async function previewBulkUpload(
     const dobString = raw.date_of_birth?.trim() || null;
     const rawCourseName = raw.course_name?.trim() || null;
     const rawCourseId = raw.course_id?.trim() || null;
+    const rawGroupName = raw.group_name?.trim() || null;
 
     let targetCourseId: string | null = null;
     let matchedCourseName: string | null = null;
+    let matchedGroupName: string | null = null;
 
     if (!firstName || !lastName) {
       skippedCount++;
@@ -175,6 +183,7 @@ export async function previewBulkUpload(
         gender,
         date_of_birth: dobString,
         course_name: null,
+        group_name: null,
         action: "skip",
         skip_reason: "Missing first_name or last_name",
       });
@@ -194,6 +203,7 @@ export async function previewBulkUpload(
         gender,
         date_of_birth: dobString,
         course_name: null,
+        group_name: null,
         action: "skip",
         skip_reason: "Missing nin_number",
       });
@@ -213,6 +223,7 @@ export async function previewBulkUpload(
         gender,
         date_of_birth: dobString,
         course_name: null,
+        group_name: null,
         action: "skip",
         skip_reason: "At least one of email or phone is required",
       });
@@ -232,6 +243,7 @@ export async function previewBulkUpload(
         gender,
         date_of_birth: dobString,
         course_name: null,
+        group_name: null,
         action: "skip",
         skip_reason: "Invalid email format",
       });
@@ -254,6 +266,7 @@ export async function previewBulkUpload(
           gender,
           date_of_birth: dobString,
           course_name: null,
+          group_name: null,
           action: "skip",
           skip_reason: `Course ID '${rawCourseId}' does not exist for this program`,
         });
@@ -276,6 +289,7 @@ export async function previewBulkUpload(
           gender,
           date_of_birth: dobString,
           course_name: rawCourseName,
+          group_name: null,
           action: "skip",
           skip_reason: `Course '${rawCourseName}' does not exist for this program`,
         });
@@ -283,6 +297,14 @@ export async function previewBulkUpload(
       }
       targetCourseId = match.id;
       matchedCourseName = match.name;
+    }
+
+    if (targetCourseId && rawGroupName) {
+      const parentCourse = courseMapById.get(targetCourseId);
+      const groupMatch = parentCourse?.groups.find(
+        (g) => g.name.trim().toLowerCase() === rawGroupName.trim().toLowerCase()
+      );
+      matchedGroupName = groupMatch ? groupMatch.name : rawGroupName.trim();
     }
 
     // Check duplicate in same CSV file
@@ -299,6 +321,7 @@ export async function previewBulkUpload(
         gender,
         date_of_birth: dobString,
         course_name: matchedCourseName,
+        group_name: matchedGroupName,
         action: "skip",
         skip_reason: "Duplicate email within the uploaded file",
       });
@@ -318,6 +341,7 @@ export async function previewBulkUpload(
         gender,
         date_of_birth: dobString,
         course_name: matchedCourseName,
+        group_name: matchedGroupName,
         action: "skip",
         skip_reason: "Duplicate phone within the uploaded file",
       });
@@ -348,6 +372,7 @@ export async function previewBulkUpload(
         gender,
         date_of_birth: dobString,
         course_name: matchedCourseName,
+        group_name: matchedGroupName,
         action: "skip",
         skip_reason: "Email and phone match different existing participants in database",
       });
@@ -371,6 +396,7 @@ export async function previewBulkUpload(
         gender,
         date_of_birth: dobString,
         course_name: matchedCourseName,
+        group_name: matchedGroupName,
         action: "new_participant",
         skip_reason: null,
       });
@@ -391,6 +417,7 @@ export async function previewBulkUpload(
         gender,
         date_of_birth: dobString,
         course_name: matchedCourseName,
+        group_name: matchedGroupName,
         action: "skip",
         skip_reason: "Participant is enrolled multiple times in this uploaded file",
       });
@@ -419,6 +446,7 @@ export async function previewBulkUpload(
         gender,
         date_of_birth: dobString,
         course_name: matchedCourseName,
+        group_name: matchedGroupName,
         action: "skip",
         skip_reason: "Already enrolled in this program",
       });
@@ -441,6 +469,7 @@ export async function previewBulkUpload(
       gender,
       date_of_birth: dobString,
       course_name: matchedCourseName,
+      group_name: matchedGroupName,
       action: "new_enrollment",
       skip_reason: null,
     });
@@ -470,6 +499,9 @@ export async function commitBulkUpload(
 
   const programCourses = await prisma.course.findMany({
     where: { program_id: programId },
+    include: {
+      groups: true,
+    },
   });
   const courseMapByName = new Map(programCourses.map((c) => [c.name.trim().toLowerCase(), c]));
   const courseMapById = new Map(programCourses.map((c) => [c.id, c]));
@@ -495,8 +527,10 @@ export async function commitBulkUpload(
     const dobString = raw.date_of_birth?.trim() || null;
     const rawCourseName = raw.course_name?.trim() || null;
     const rawCourseId = raw.course_id?.trim() || null;
+    const rawGroupName = raw.group_name?.trim() || null;
 
     let targetCourseId: string | null = null;
+    let targetGroupId: string | null = null;
 
     if (!firstName || !lastName) {
       skippedCount++;
@@ -553,6 +587,34 @@ export async function commitBulkUpload(
       targetCourseId = match.id;
     }
 
+    // Match or auto-create course group if specified
+    if (targetCourseId && rawGroupName) {
+      const groupNameTrimmed = rawGroupName.trim();
+      const parentCourse = courseMapById.get(targetCourseId);
+      const existingMatch = parentCourse?.groups.find(
+        (g) => g.name.trim().toLowerCase() === groupNameTrimmed.toLowerCase()
+      );
+      if (existingMatch) {
+        targetGroupId = existingMatch.id;
+      } else {
+        const newGroup = await prisma.courseGroup.upsert({
+          where: {
+            course_id_name: {
+              course_id: targetCourseId,
+              name: groupNameTrimmed,
+            },
+          },
+          update: {},
+          create: {
+            course_id: targetCourseId,
+            name: groupNameTrimmed,
+          },
+        });
+        targetGroupId = newGroup.id;
+        parentCourse?.groups.push(newGroup);
+      }
+    }
+
     try {
       const outcome = await createOrEnrollParticipant(
         {
@@ -567,7 +629,8 @@ export async function commitBulkUpload(
           date_of_birth: dobString,
         },
         programId,
-        targetCourseId
+        targetCourseId,
+        targetGroupId
       );
 
       if (outcome.wasNewParticipant) {

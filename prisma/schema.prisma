@@ -78,33 +78,52 @@ model Course {
   program               Program             @relation(fields: [program_id], references: [id], onDelete: Restrict)
   enrollments           Enrollment[]
   facilitator_courses   FacilitatorCourse[]
+  groups                CourseGroup[]
 
   @@map("courses")
   @@index([program_id])
 }
 
-model Enrollment {
-  id             String           @id @default(uuid()) @db.Uuid
-  participant_id String           @db.Uuid
-  program_id     String           @db.Uuid
-  course_id      String?          @db.Uuid
-  status         EnrollmentStatus @default(registered)
-  metadata       Json             @default("{}")
-  enrolled_at    DateTime         @default(now())
-  created_at     DateTime         @default(now())
-  updated_at     DateTime         @updatedAt
+model CourseGroup {
+  id         String   @id @default(uuid()) @db.Uuid
+  course_id  String   @db.Uuid
+  name       String
+  created_at DateTime @default(now())
 
-  participant    Participant      @relation(fields: [participant_id], references: [id], onDelete: Restrict)
-  program        Program          @relation(fields: [program_id], references: [id], onDelete: Restrict)
-  course         Course?          @relation(fields: [course_id], references: [id], onDelete: SetNull)
+  course             Course             @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  enrollments        Enrollment[]
+  facilitator_groups FacilitatorGroup[]
+
+  @@unique([course_id, name])
+  @@index([course_id])
+  @@map("course_groups")
+}
+
+model Enrollment {
+  id              String           @id @default(uuid()) @db.Uuid
+  participant_id  String           @db.Uuid
+  program_id      String           @db.Uuid
+  course_id       String?          @db.Uuid
+  course_group_id String?          @db.Uuid
+  status          EnrollmentStatus @default(registered)
+  metadata        Json             @default("{}")
+  enrolled_at     DateTime         @default(now())
+  created_at      DateTime         @default(now())
+  updated_at      DateTime         @updatedAt
+
+  participant        Participant        @relation(fields: [participant_id], references: [id], onDelete: Restrict)
+  program            Program            @relation(fields: [program_id], references: [id], onDelete: Restrict)
+  course             Course?            @relation(fields: [course_id], references: [id], onDelete: SetNull)
+  course_group       CourseGroup?       @relation(fields: [course_group_id], references: [id], onDelete: SetNull)
   attendance_records AttendanceRecord[]
-  form_responses FormResponse[]
-  certificate    Certificate?
+  form_responses     FormResponse[]
+  certificate        Certificate?
 
   @@unique([participant_id, program_id])
   @@index([program_id, status])
   @@index([participant_id])
   @@index([course_id])
+  @@index([course_group_id])
   @@index([status])
   @@index([created_at])
   @@map("enrollments")
@@ -141,7 +160,7 @@ model StaffUser {
   created_at    DateTime           @default(now())
   updated_at    DateTime           @updatedAt
 
-  program_staff ProgramStaff[]
+  program_staff     ProgramStaff[]
   marked_attendance AttendanceRecord[]
 
   @@map("staff_users")
@@ -152,9 +171,10 @@ model ProgramStaff {
   staff_user_id String              @db.Uuid
   program_id    String              @db.Uuid
 
-  staff_user    StaffUser           @relation(fields: [staff_user_id], references: [id], onDelete: Restrict)
-  program       Program             @relation(fields: [program_id], references: [id], onDelete: Restrict)
-  courses       FacilitatorCourse[]
+  staff_user         StaffUser           @relation(fields: [staff_user_id], references: [id], onDelete: Restrict)
+  program            Program             @relation(fields: [program_id], references: [id], onDelete: Restrict)
+  courses            FacilitatorCourse[]
+  facilitator_groups FacilitatorGroup[]
 
   @@unique([staff_user_id, program_id])
   @@index([staff_user_id])
@@ -172,6 +192,18 @@ model FacilitatorCourse {
 
   @@unique([program_staff_id, course_id])
   @@map("facilitator_courses")
+}
+
+model FacilitatorGroup {
+  id               String       @id @default(uuid()) @db.Uuid
+  program_staff_id String       @db.Uuid
+  course_group_id  String       @db.Uuid
+
+  program_staff    ProgramStaff @relation(fields: [program_staff_id], references: [id], onDelete: Cascade)
+  course_group     CourseGroup  @relation(fields: [course_group_id], references: [id], onDelete: Cascade)
+
+  @@unique([program_staff_id, course_group_id])
+  @@map("facilitator_groups")
 }
 
 model Session {

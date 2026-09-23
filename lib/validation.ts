@@ -39,6 +39,7 @@ export const participantCoreSchema = z
 export const createParticipantSchema = participantCoreSchema.extend({
   program_id: optionalText,
   course_id: optionalText,
+  course_group_id: optionalText,
 });
 
 export const updateParticipantSchema = z
@@ -89,10 +90,11 @@ export const updateEnrollmentSchema = z
   .object({
     status: z.enum(["registered", "active", "dropped", "completed"]).optional(),
     course_id: optionalText,
+    course_group_id: optionalText,
     metadata: metadataSchema.optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
-    message: "Provide status, course_id, or metadata to update",
+    message: "Provide status, course_id, course_group_id, or metadata to update",
   });
 
 export const loginSchema = z.object({
@@ -125,6 +127,20 @@ export const assignStaffProgramSchema = z.object({
 export const assignStaffCourseSchema = z.object({
   program_id: z.string().uuid("Valid program_id UUID is required"),
   course_id: z.string().uuid("Valid course_id UUID is required"),
+});
+
+export const assignStaffGroupsSchema = z.object({
+  program_id: z.string().uuid("Valid program_id UUID is required"),
+  course_id: z.string().uuid("Valid course_id UUID is required"),
+  group_ids: z.array(z.string().uuid("Valid group_id UUID is required")),
+});
+
+export const createCourseGroupSchema = z.object({
+  name: z.string().trim().min(1, "Group name is required").max(100, "Group name cannot exceed 100 characters"),
+});
+
+export const updateCourseGroupSchema = z.object({
+  name: z.string().trim().min(1, "Group name is required").max(100, "Group name cannot exceed 100 characters"),
 });
 
 export const changePasswordSchema = z.object({
@@ -187,6 +203,8 @@ export const updateAttendanceRecordSchema = z.object({
 });
 
 export const markAllPresentSchema = z.object({
+  course_id: optionalText,
+  course_group_id: optionalText,
   except: z
     .array(
       z.union([
