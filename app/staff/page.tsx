@@ -19,6 +19,12 @@ import {
 import { Modal, ConfirmDialog } from "@/components/ui/Dialog";
 import { useAuth } from "@/components/AuthProvider";
 
+type CourseGroup = {
+  id: string;
+  course_id: string;
+  name: string;
+};
+
 type Course = {
   id: string;
   name: string;
@@ -36,11 +42,18 @@ type FacilitatorCourseAssignment = {
   course: Course;
 };
 
+type FacilitatorGroupAssignment = {
+  id: string;
+  course_group_id: string;
+  course_group: CourseGroup;
+};
+
 type ProgramStaffAssignment = {
   id: string;
   program_id: string;
   program: Program;
   courses?: FacilitatorCourseAssignment[];
+  facilitator_groups?: FacilitatorGroupAssignment[];
 };
 
 type StaffAccount = {
@@ -100,6 +113,7 @@ export default function StaffManagementPage() {
   const [assignLoading, setAssignLoading] = useState(false);
   const [assignError, setAssignError] = useState<string | null>(null);
   const [programCoursesMap, setProgramCoursesMap] = useState<Record<string, Course[]>>({});
+  const [courseGroupsMap, setCourseGroupsMap] = useState<Record<string, CourseGroup[]>>({});
 
   const fetchStaff = async () => {
     try {
@@ -122,16 +136,35 @@ export default function StaffManagementPage() {
     }
   };
 
+  const fetchGroupsForCourse = async (courseId: string) => {
+    try {
+      const res = await fetch(`/api/courses/${courseId}/groups`);
+      const json = await res.json();
+      if (res.ok) {
+        setCourseGroupsMap((prev) => ({
+          ...prev,
+          [courseId]: json.data || [],
+        }));
+      }
+    } catch {
+      // Ignore
+    }
+  };
+
   const fetchCoursesForProgram = async (programId: string) => {
     if (programCoursesMap[programId]) return;
     try {
       const res = await fetch(`/api/programs/${programId}/courses`);
       const json = await res.json();
       if (res.ok) {
+        const courses: Course[] = json.data || [];
         setProgramCoursesMap((prev) => ({
           ...prev,
-          [programId]: json.data || [],
+          [programId]: courses,
         }));
+        courses.forEach((c) => {
+          fetchGroupsForCourse(c.id);
+        });
       }
     } catch {
       // Ignore
@@ -150,14 +183,18 @@ export default function StaffManagementPage() {
     }
   }, [isAdmin]);
 
-  // When assign target changes, fetch courses for assigned programs
+  // When assign target changes, fetch courses & groups for assigned programs
   useEffect(() => {
     if (assignTarget?.program_staff) {
       assignTarget.program_staff.forEach((ps) => {
         fetchCoursesForProgram(ps.program_id);
+        const courses = programCoursesMap[ps.program_id] || [];
+        courses.forEach((c) => {
+          fetchGroupsForCourse(c.id);
+        });
       });
     }
-  }, [assignTarget]);
+  }, [assignTarget, programCoursesMap]);
 
   if (authLoading) {
     return (
@@ -369,6 +406,7 @@ export default function StaffManagementPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to assign course");
 
+      fetchGroupsForCourse(courseId);
       await refreshAssignTarget(assignTarget.id);
     } catch (err: unknown) {
       setAssignError((err as { message?: string }).message || "Failed to assign course");
@@ -395,6 +433,56 @@ export default function StaffManagementPage() {
       await refreshAssignTarget(assignTarget.id);
     } catch (err: unknown) {
       setAssignError((err as { message?: string }).message || "Failed to unassign course");
+    } finally {
+      setAssignLoading(false);
+    }
+  };
+
+  const handleToggleGroup = async (
+    programId: string,
+    courseId: string,
+    groupId: string,
+    isCurrentlyAssigned: boolean
+  ) => {
+    if (!assignTarget) return;
+
+    setAssignLoading(true);
+    setAssignError(null);
+
+    try {
+      const ps = assignTarget.program_staff?.find((p) => p.program_id === programId);
+      const groupsForCourse = courseGroupsMap[courseId] || [];
+      const currentGroupIds = (ps?.facilitator_groups || [])
+        .filter(
+          (fg) =>
+            fg.course_group?.course_id === courseId ||
+            groupsForCourse.some((g) => g.id === fg.course_group_id)
+        )
+        .map((fg) => fg.course_group_id);
+
+      let nextGroupIds: string[];
+      if (isCurrentlyAssigned) {
+        nextGroupIds = currentGroupIds.filter((id) => id !== groupId);
+      } else {
+        nextGroupIds = Array.from(new Set([...currentGroupIds, groupId]));
+      }
+
+      const res = await fetch(`/api/staff/${assignTarget.id}/groups`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          program_id: programId,
+          course_id: courseId,
+          group_ids: nextGroupIds,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to update group assignments");
+
+      await refreshAssignTarget(assignTarget.id);
+    } catch (err: unknown) {
+      setAssignError((err as { message?: string }).message || "Failed to update group assignments");
     } finally {
       setAssignLoading(false);
     }
@@ -513,14 +601,24 @@ export default function StaffManagementPage() {
                                   <div>{ps.program.name}</div>
                                   {assignedCourses.length > 0 && (
                                     <div className="flex flex-wrap gap-1 pt-0.5">
-                                      {assignedCourses.map((c) => (
-                                        <span
-                                          key={c.id}
-                                          className="px-1.5 py-0.2 bg-teal-50 text-teal-800 border border-teal-200 rounded text-[10px]"
-                                        >
-                                          {c.course.name}
-                                        </span>
-                                      ))}
+                                      {assignedCourses.map((c) => {
+                                        const groupsForThisCourse = (ps.facilitator_groups || []).filter(
+                                          (fg) => fg.course_group?.course_id === c.course_id
+                                        );
+                                        return (
+                                          <span
+                                            key={c.id}
+                                            className="px-1.5 py-0.2 bg-teal-50 text-teal-800 border border-teal-200 rounded text-[10px] inline-flex items-center gap-1"
+                                          >
+                                            <span>{c.course.name}</span>
+                                            {groupsForThisCourse.length > 0 && (
+                                              <span className="text-teal-600 font-semibold">
+                                                ({groupsForThisCourse.map((fg) => fg.course_group.name).join(", ")})
+                                              </span>
+                                            )}
+                                          </span>
+                                        );
+                                      })}
                                     </div>
                                   )}
                                 </div>
@@ -897,13 +995,21 @@ export default function StaffManagementPage() {
                             No courses defined for this program. Access applies to program.
                           </p>
                         ) : (
-                          <div className="space-y-1.5">
-                            <div className="flex flex-wrap gap-1.5">
-                              {availableCourses.map((c) => {
-                                const isAssigned = assignedCourseIds.includes(c.id);
-                                return (
+                          <div className="space-y-2">
+                            {availableCourses.map((c) => {
+                              const isAssigned = assignedCourseIds.includes(c.id);
+                              const groups = courseGroupsMap[c.id] || [];
+                              const assignedGroupIds = (ps.facilitator_groups || [])
+                                .filter(
+                                  (fg) =>
+                                    fg.course_group?.course_id === c.id ||
+                                    groups.some((g) => g.id === fg.course_group_id)
+                                )
+                                .map((fg) => fg.course_group_id);
+
+                              return (
+                                <div key={c.id} className="space-y-1.5">
                                   <button
-                                    key={c.id}
                                     type="button"
                                     onClick={() =>
                                       isAssigned
@@ -919,9 +1025,45 @@ export default function StaffManagementPage() {
                                   >
                                     <span>{isAssigned ? "✓ " + c.name : "+ " + c.name}</span>
                                   </button>
-                                );
-                              })}
-                            </div>
+
+                                  {/* Nested Group Selection if course is assigned and has groups */}
+                                  {isAssigned && groups.length > 0 && (
+                                    <div className="ml-3 pl-2.5 border-l-2 border-slate-200 py-1 space-y-1">
+                                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
+                                        Specific Group Focus (Optional):
+                                      </span>
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {groups.map((g) => {
+                                          const isGroupAssigned = assignedGroupIds.includes(g.id);
+                                          return (
+                                            <button
+                                              key={g.id}
+                                              type="button"
+                                              onClick={() =>
+                                                handleToggleGroup(
+                                                  ps.program_id,
+                                                  c.id,
+                                                  g.id,
+                                                  isGroupAssigned
+                                                )
+                                              }
+                                              disabled={assignLoading}
+                                              className={`px-2 py-0.5 rounded text-[10px] font-medium transition flex items-center space-x-1 border ${
+                                                isGroupAssigned
+                                                  ? "bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200 shadow-2xs"
+                                                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+                                              }`}
+                                            >
+                                              <span>{isGroupAssigned ? "✓ " + g.name : "+ " + g.name}</span>
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
                       </div>

@@ -31,6 +31,11 @@ export async function GET(req: NextRequest) {
                   course: true,
                 },
               },
+              facilitator_groups: {
+                include: {
+                  course_group: true,
+                },
+              },
             },
           },
         },

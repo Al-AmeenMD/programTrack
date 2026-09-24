@@ -9,7 +9,23 @@ if (!connectionString) {
   throw new Error("DATABASE_URL or DIRECT_URL is not set");
 }
 
+function logDatabaseTarget(url?: string) {
+  let host = "UNKNOWN";
+  if (url) {
+    try {
+      host = new URL(url).host || url.match(/@([^/:]+)/)?.[1] || "UNKNOWN";
+    } catch {
+      const match = url.match(/@([^/:]+)/);
+      if (match) host = match[1];
+    }
+  }
+  console.log("======================================================================");
+  console.log(`[ENVIRONMENT GUARD] Target Database Host: ${host}`);
+  console.log("======================================================================");
+}
+
 async function main() {
+  logDatabaseTarget(connectionString);
   console.log("Connecting to PostgreSQL to apply Course Groups migration...");
   const pool = new Pool({
     connectionString,
