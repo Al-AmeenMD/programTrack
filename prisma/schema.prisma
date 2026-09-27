@@ -79,6 +79,7 @@ model Course {
   enrollments           Enrollment[]
   facilitator_courses   FacilitatorCourse[]
   groups                CourseGroup[]
+  sessions              Session[]
 
   @@map("courses")
   @@index([program_id])
@@ -209,15 +210,18 @@ model FacilitatorGroup {
 model Session {
   id           String             @id @default(uuid()) @db.Uuid
   program_id   String             @db.Uuid
+  course_id    String             @db.Uuid
   title        String
   session_date DateTime           @db.Date
   is_active    Boolean            @default(true)
   created_at   DateTime           @default(now())
 
   program      Program            @relation(fields: [program_id], references: [id], onDelete: Restrict)
+  course       Course             @relation(fields: [course_id], references: [id], onDelete: Restrict)
   attendance   AttendanceRecord[]
 
   @@index([program_id])
+  @@index([course_id])
   @@map("sessions")
 }
 

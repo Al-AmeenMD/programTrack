@@ -32,6 +32,8 @@ const SEED_PARTICIPANT_3_ID = "98b7f7ee-ae19-42d2-bdae-d1283207cc3b"; // Zainab 
 const SEED_PARTICIPANT_4_ID = "7eae8c42-ae06-433a-a312-dd00c1a3bad4"; // Chinedu Okafor
 const SEED_PARTICIPANT_5_ID = "a45b63e1-7d3c-4c10-b805-d539fc5a24f9"; // Fatima Sani
 
+const SEED_COURSE_SQL_ID = "00000000-0000-4000-c000-000000000001"; // SQL & Relational Databases
+
 const SEED_SESSION_1_ID = "00000000-0000-4000-d000-000000000001"; // Week 1: Introduction to SQL
 const SEED_SESSION_2_ID = "00000000-0000-4000-d000-000000000002"; // Week 2: Advanced SQL Joins
 
@@ -213,17 +215,33 @@ async function main() {
     }),
   ]);
 
-  // 3. Seed Enrollments (Upsert by compound key participant_id_program_id)
+  // 3. Seed Course (Upsert by fixed ID)
+  const sqlCourse = await prisma.course.upsert({
+    where: { id: SEED_COURSE_SQL_ID },
+    update: {
+      program_id: dataAnalysis.id,
+      name: "SQL & Relational Databases",
+    },
+    create: {
+      id: SEED_COURSE_SQL_ID,
+      program_id: dataAnalysis.id,
+      name: "SQL & Relational Databases",
+    },
+  });
+
+  // 4. Seed Enrollments (Upsert by compound key participant_id_program_id)
   const enrollmentsData = [
     {
       participant_id: participants[0].id,
       program_id: dataAnalysis.id,
+      course_id: sqlCourse.id,
       status: "active" as const,
       metadata: { cohort: "DA-2026-A" },
     },
     {
       participant_id: participants[1].id,
       program_id: dataAnalysis.id,
+      course_id: sqlCourse.id,
       status: "active" as const,
       metadata: { cohort: "DA-2026-A" },
     },
@@ -257,6 +275,7 @@ async function main() {
         },
       },
       update: {
+        course_id: en.course_id || null,
         status: en.status,
         metadata: en.metadata,
       },
@@ -265,7 +284,7 @@ async function main() {
     seededEnrollments.push(dbEnrollment);
   }
 
-  // 4. Seed StaffUsers (Upsert by fixed ID)
+  // 5. Seed StaffUsers (Upsert by fixed ID)
   const adminPasswordHash = bcrypt.hashSync("admin123", 10);
   const facilitatorPasswordHash = bcrypt.hashSync("facilitator123", 10);
 
@@ -303,8 +322,8 @@ async function main() {
     },
   });
 
-  // 5. Seed ProgramStaff (Upsert by compound key staff_user_id_program_id)
-  await prisma.programStaff.upsert({
+  // 6. Seed ProgramStaff & FacilitatorCourse
+  const daProgramStaff = await prisma.programStaff.upsert({
     where: {
       staff_user_id_program_id: {
         staff_user_id: facilitatorUser.id,
@@ -318,17 +337,33 @@ async function main() {
     },
   });
 
-  // 6. Seed Sessions (Upsert by fixed ID)
+  await prisma.facilitatorCourse.upsert({
+    where: {
+      program_staff_id_course_id: {
+        program_staff_id: daProgramStaff.id,
+        course_id: sqlCourse.id,
+      },
+    },
+    update: {},
+    create: {
+      program_staff_id: daProgramStaff.id,
+      course_id: sqlCourse.id,
+    },
+  });
+
+  // 7. Seed Sessions (Upsert by fixed ID)
   const session1 = await prisma.session.upsert({
     where: { id: SEED_SESSION_1_ID },
     update: {
       program_id: dataAnalysis.id,
+      course_id: sqlCourse.id,
       title: "Week 1: Introduction to SQL",
       session_date: new Date("2026-07-02"),
     },
     create: {
       id: SEED_SESSION_1_ID,
       program_id: dataAnalysis.id,
+      course_id: sqlCourse.id,
       title: "Week 1: Introduction to SQL",
       session_date: new Date("2026-07-02"),
     },
@@ -338,12 +373,14 @@ async function main() {
     where: { id: SEED_SESSION_2_ID },
     update: {
       program_id: dataAnalysis.id,
+      course_id: sqlCourse.id,
       title: "Week 2: Advanced SQL Joins",
       session_date: new Date("2026-07-09"),
     },
     create: {
       id: SEED_SESSION_2_ID,
       program_id: dataAnalysis.id,
+      course_id: sqlCourse.id,
       title: "Week 2: Advanced SQL Joins",
       session_date: new Date("2026-07-09"),
     },

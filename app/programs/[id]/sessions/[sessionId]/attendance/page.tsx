@@ -34,10 +34,15 @@ type CourseGroup = {
 type SessionDetail = {
   id: string;
   program_id: string;
+  course_id: string;
   title: string;
   session_date: string;
   is_active: boolean;
   program?: {
+    id: string;
+    name: string;
+  };
+  course?: {
     id: string;
     name: string;
   };
@@ -81,7 +86,6 @@ export default function AttendanceMarkingPage({ params }: RouteContext) {
   const { user } = useAuth();
 
   const [session, setSession] = useState<SessionDetail | null>(null);
-  const [courses, setCourses] = useState<Course[]>([]);
   const [roster, setRoster] = useState<AttendanceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -89,9 +93,7 @@ export default function AttendanceMarkingPage({ params }: RouteContext) {
 
   // Search & Filters
   const [search, setSearch] = useState("");
-  const [selectedCourseFilter, setSelectedCourseFilter] = useState("all");
   const [selectedGroupFilter, setSelectedGroupFilter] = useState("all");
-  const [facilitatorAssignedCourses, setFacilitatorAssignedCourses] = useState<string[]>([]);
   const [facilitatorAssignedGroupIds, setFacilitatorAssignedGroupIds] = useState<string[]>([]);
 
   // Mark All Present Modal State
@@ -107,16 +109,6 @@ export default function AttendanceMarkingPage({ params }: RouteContext) {
       setSession(json.data);
     } catch (err: unknown) {
       setError((err as { message?: string }).message || "Failed to load session");
-    }
-  };
-
-  const fetchCourses = async () => {
-    try {
-      const res = await fetch(`/api/programs/${programId}/courses`);
-      const json = await res.json();
-      if (res.ok) setCourses(json.data || []);
-    } catch {
-      // Ignore
     }
   };
 
@@ -145,39 +137,11 @@ export default function AttendanceMarkingPage({ params }: RouteContext) {
     }
   };
 
-  // Determine facilitator assigned courses and set sensible default course filter
-  useEffect(() => {
-    if (user?.role === "facilitator" && user.id) {
-      const fetchStaffAssignments = async () => {
-        try {
-          const res = await fetch("/api/staff");
-          const json = await res.json();
-          if (res.ok && json.data) {
-            const me = json.data.find((s: { id: string }) => s.id === user.id);
-            if (me?.program_staff) {
-              const ps = me.program_staff.find((p: { program_id: string }) => p.program_id === programId);
-              if (ps?.courses && ps.courses.length > 0) {
-                const assignedIds = ps.courses.map((c: { course_id: string }) => c.course_id);
-                setFacilitatorAssignedCourses(assignedIds);
-                if (assignedIds.length > 0) {
-                  setSelectedCourseFilter(assignedIds[0]);
-                }
-              }
-            }
-          }
-        } catch {
-          // Ignore
-        }
-      };
-      fetchStaffAssignments();
-    }
-  }, [user, programId]);
-
   useEffect(() => {
     const init = async () => {
       setLoading(true);
       setError(null);
-      await Promise.all([fetchSessionData(), fetchCourses(), fetchRoster()]);
+      await Promise.all([fetchSessionData(), fetchRoster()]);
       setLoading(false);
     };
     init();
@@ -245,10 +209,6 @@ export default function AttendanceMarkingPage({ params }: RouteContext) {
         except: [...exceptPayload, ...excludedIds],
       };
 
-      if (selectedCourseFilter !== "all" && selectedCourseFilter !== "unassigned") {
-        requestBody.course_id = selectedCourseFilter;
-      }
-
       if (
         selectedGroupFilter !== "all" &&
         selectedGroupFilter !== "my_groups" &&
@@ -277,19 +237,16 @@ export default function AttendanceMarkingPage({ params }: RouteContext) {
   };
 
   // Distinct groups in roster
-  const availableGroupsMap = new Map<string, { id: string; name: string; course_id: string | null }>();
+  const availableGroupsMap = new Map<string, { id: string; name: string }>();
   roster.forEach((item) => {
     if (item.course_group) {
       availableGroupsMap.set(item.course_group.id, {
         id: item.course_group.id,
         name: item.course_group.name,
-        course_id: item.course_id,
       });
     }
   });
-  const availableGroups = Array.from(availableGroupsMap.values()).filter((g) =>
-    selectedCourseFilter === "all" ? true : g.course_id === selectedCourseFilter
-  );
+  const availableGroups = Array.from(availableGroupsMap.values());
 
   // Filtered Roster
   const filteredRoster = roster.filter((item) => {
@@ -297,13 +254,6 @@ export default function AttendanceMarkingPage({ params }: RouteContext) {
       !search.trim() ||
       item.participant.full_name.toLowerCase().includes(search.toLowerCase()) ||
       (item.participant.email && item.participant.email.toLowerCase().includes(search.toLowerCase()));
-
-    const matchesCourse =
-      selectedCourseFilter === "all"
-        ? true
-        : selectedCourseFilter === "unassigned"
-        ? !item.course_id
-        : item.course_id === selectedCourseFilter;
 
     let matchesGroup = true;
     if (selectedGroupFilter === "all") {
@@ -316,7 +266,7 @@ export default function AttendanceMarkingPage({ params }: RouteContext) {
       matchesGroup = item.course_group_id === selectedGroupFilter;
     }
 
-    return matchesSearch && matchesCourse && matchesGroup;
+    return matchesSearch && matchesGroup;
   });
 
   const totalCount = filteredRoster.length;
@@ -332,9 +282,7 @@ export default function AttendanceMarkingPage({ params }: RouteContext) {
       ? "Unassigned Group"
       : selectedGroupFilter !== "all"
       ? availableGroups.find((g) => g.id === selectedGroupFilter)?.name || "Selected Group"
-      : selectedCourseFilter !== "all"
-      ? courses.find((c) => c.id === selectedCourseFilter)?.name || "All Track Participants"
-      : "All Participants";
+      : `${session?.course?.name || "Course"} Participants`;
 
   if (loading) {
     return (
@@ -361,11 +309,11 @@ export default function AttendanceMarkingPage({ params }: RouteContext) {
       <div className="space-y-3 pb-3 border-b border-slate-200">
         <div className="flex items-center space-x-2 text-xs text-slate-500">
           <Link
-            href={`/programs/${programId}?tab=sessions`}
+            href={`/programs/${programId}/courses/${session.course_id}`}
             className="hover:text-teal-700 flex items-center space-x-1"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
-            <span>{session.program?.name || "Program"} Sessions</span>
+            <span>{session.course?.name || "Course"} Sessions</span>
           </Link>
           <span>/</span>
           <span className="text-slate-900 font-semibold">{session.title}</span>
@@ -383,7 +331,7 @@ export default function AttendanceMarkingPage({ params }: RouteContext) {
               )}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Date: <span className="font-semibold text-slate-800">{new Date(session.session_date).toLocaleDateString()}</span> · Program: <span className="font-semibold text-slate-800">{session.program?.name}</span>
+              Date: <span className="font-semibold text-slate-800">{new Date(session.session_date).toLocaleDateString()}</span> · Course: <span className="font-semibold text-slate-800">{session.course?.name}</span> ({session.program?.name})
             </p>
           </div>
 
@@ -527,7 +475,7 @@ export default function AttendanceMarkingPage({ params }: RouteContext) {
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
               }`}
             >
-              <span>All Track Participants</span>
+              <span>All Course Participants</span>
               <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${selectedGroupFilter === "all" ? "bg-slate-900 text-white" : "bg-white/80 text-slate-600"}`}>
                 {roster.length}
               </span>
@@ -549,29 +497,28 @@ export default function AttendanceMarkingPage({ params }: RouteContext) {
           />
         </div>
 
-        <div className="flex items-center space-x-2 text-xs">
-          <Filter className="w-4 h-4 text-slate-500" />
-          <span className="font-medium text-slate-700">Course:</span>
-          <select
-            value={selectedCourseFilter}
-            onChange={(e) => {
-              setSelectedCourseFilter(e.target.value);
-              setSelectedGroupFilter("all");
-            }}
-            className="px-3 py-1.5 border border-slate-300 rounded-md text-xs bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-          >
-            <option value="all">All Courses / Program Roster ({roster.length})</option>
-            {courses.map((c) => {
-              const isAssigned = facilitatorAssignedCourses.includes(c.id);
-              return (
-                <option key={c.id} value={c.id}>
-                  {c.name} {isAssigned ? " (Your Assigned Focus)" : ""}
+        {availableGroups.length > 0 && (
+          <div className="flex items-center space-x-2 text-xs">
+            <Filter className="w-4 h-4 text-slate-500" />
+            <span className="font-medium text-slate-700">Group:</span>
+            <select
+              value={selectedGroupFilter}
+              onChange={(e) => setSelectedGroupFilter(e.target.value)}
+              className="px-3 py-1.5 border border-slate-300 rounded-md text-xs bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+            >
+              <option value="all">All Groups ({roster.length})</option>
+              {facilitatorAssignedGroupIds.length >= 2 && (
+                <option value="my_groups">My Assigned Groups (Combined)</option>
+              )}
+              {availableGroups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
                 </option>
-              );
-            })}
-            <option value="unassigned">Unassigned Course Only</option>
-          </select>
-        </div>
+              ))}
+              <option value="unassigned">Unassigned Group</option>
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Roster Table */}

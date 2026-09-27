@@ -19,7 +19,6 @@ import {
   RefreshCw,
   CheckCircle2,
   Eye,
-  CheckCheck,
 } from "lucide-react";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Modal, ConfirmDialog } from "@/components/ui/Dialog";
@@ -55,13 +54,6 @@ type Enrollment = {
     id: string;
     name: string;
   } | null;
-};
-
-type SessionItem = {
-  id: string;
-  title: string;
-  session_date: string;
-  is_active: boolean;
 };
 
 type FormFieldItem = {
@@ -104,15 +96,14 @@ export default function ProgramDetailPage({ params }: RouteContext) {
   const [program, setProgram] = useState<ProgramDetail | null>(null);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [courses, setCourses] = useState<CourseItem[]>([]);
-  const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [formTemplate, setFormTemplate] = useState<FormTemplateData | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Tab State
-  const initialTab = (searchParams.get("tab") as "reports" | "enrollments" | "courses" | "sessions" | "form-template") || "reports";
-  const [activeTab, setActiveTab] = useState<"reports" | "enrollments" | "courses" | "sessions" | "form-template">(initialTab);
+  const initialTab = (searchParams.get("tab") as "reports" | "enrollments" | "courses" | "form-template") || "reports";
+  const [activeTab, setActiveTab] = useState<"reports" | "enrollments" | "courses" | "form-template">(initialTab);
 
   // Edit Program Modal
   const [isEditProgramOpen, setIsEditProgramOpen] = useState(false);
@@ -170,18 +161,6 @@ export default function ProgramDetailPage({ params }: RouteContext) {
   // Intake Form Modal (Fill out / View response)
   const [intakeModalTarget, setIntakeModalTarget] = useState<{ enrollmentId: string; participantName: string } | null>(null);
 
-  // --- SESSIONS TAB STATE ---
-  const [isAddSessionOpen, setIsAddSessionOpen] = useState(false);
-  const [addSessionForm, setAddSessionForm] = useState({ title: "", session_date: "" });
-  const [addSessionLoading, setAddSessionLoading] = useState(false);
-
-  const [editSessionTarget, setEditSessionTarget] = useState<SessionItem | null>(null);
-  const [editSessionForm, setEditSessionForm] = useState({ title: "", session_date: "", is_active: true });
-  const [editSessionLoading, setEditSessionLoading] = useState(false);
-
-  const [deactivateSessionTarget, setDeactivateSessionTarget] = useState<SessionItem | null>(null);
-  const [deactivateSessionLoading, setDeactivateSessionLoading] = useState(false);
-
   // --- INTAKE FORM BUILDER STATE (ADMIN) ---
   const [builderTemplateName, setBuilderTemplateName] = useState("");
   const [builderFields, setBuilderFields] = useState<FormFieldItem[]>([]);
@@ -226,10 +205,6 @@ export default function ProgramDetailPage({ params }: RouteContext) {
       const enrollRes = await fetch(`/api/programs/${id}/enrollments`);
       const enrollJson = await enrollRes.json();
       if (enrollRes.ok) setEnrollments(enrollJson.data || []);
-
-      const sessionRes = await fetch(`/api/programs/${id}/sessions?include_inactive=true`);
-      const sessionJson = await sessionRes.json();
-      if (sessionRes.ok) setSessions(sessionJson.data || []);
 
       const formRes = await fetch(`/api/programs/${id}/form-template`);
       const formJson = await formRes.json();
@@ -429,65 +404,6 @@ export default function ProgramDetailPage({ params }: RouteContext) {
     }
   };
 
-  // --- SESSIONS HANDLERS ---
-  const handleAddSessionSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAddSessionLoading(true);
-    try {
-      const res = await fetch(`/api/programs/${id}/sessions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(addSessionForm),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Failed to create session");
-      setIsAddSessionOpen(false);
-      setAddSessionForm({ title: "", session_date: "" });
-      await fetchProgramData(true);
-    } catch (err: unknown) {
-      alert((err as { message?: string }).message || "Failed to create session");
-    } finally {
-      setAddSessionLoading(false);
-    }
-  };
-
-  const handleEditSessionSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editSessionTarget) return;
-    setEditSessionLoading(true);
-    try {
-      const res = await fetch(`/api/sessions/${editSessionTarget.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editSessionForm),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Failed to update session");
-      setEditSessionTarget(null);
-      await fetchProgramData(true);
-    } catch (err: unknown) {
-      alert((err as { message?: string }).message || "Failed to update session");
-    } finally {
-      setEditSessionLoading(false);
-    }
-  };
-
-  const handleDeactivateSessionConfirm = async () => {
-    if (!deactivateSessionTarget) return;
-    setDeactivateSessionLoading(true);
-    try {
-      const res = await fetch(`/api/sessions/${deactivateSessionTarget.id}`, { method: "DELETE" });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Failed to deactivate session");
-      setDeactivateSessionTarget(null);
-      await fetchProgramData(true);
-    } catch (err: unknown) {
-      alert((err as { message?: string }).message || "Failed to deactivate session");
-    } finally {
-      setDeactivateSessionLoading(false);
-    }
-  };
-
   // --- INTAKE FORM BUILDER HANDLERS ---
   const handleSaveFieldInput = (e: React.FormEvent) => {
     e.preventDefault();
@@ -643,13 +559,23 @@ export default function ProgramDetailPage({ params }: RouteContext) {
       )}
 
       {/* Program Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs space-y-1">
           <span className="text-[11px] text-slate-500 font-medium flex items-center space-x-1">
             <Users className="w-3.5 h-3.5 text-teal-700" />
-            <span>Enrollments</span>
+            <span>Total Enrollments</span>
           </span>
           <p className="text-xl font-bold text-slate-900">{enrollments.length}</p>
+        </div>
+
+        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs space-y-1">
+          <span className="text-[11px] text-slate-500 font-medium flex items-center space-x-1">
+            <Users className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Active Enrollments</span>
+          </span>
+          <p className="text-xl font-bold text-emerald-700">
+            {enrollments.filter((e) => e.status === "active").length}
+          </p>
         </div>
 
         <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs space-y-1">
@@ -658,14 +584,6 @@ export default function ProgramDetailPage({ params }: RouteContext) {
             <span>Courses / Tracks</span>
           </span>
           <p className="text-xl font-bold text-slate-900">{courses.length}</p>
-        </div>
-
-        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs space-y-1">
-          <span className="text-[11px] text-slate-500 font-medium flex items-center space-x-1">
-            <Calendar className="w-3.5 h-3.5 text-teal-700" />
-            <span>Sessions</span>
-          </span>
-          <p className="text-xl font-bold text-slate-900">{sessions.length}</p>
         </div>
 
 {/* INTAKE FORM STAT CARD — hidden until intake form feature is enabled
@@ -716,16 +634,6 @@ export default function ProgramDetailPage({ params }: RouteContext) {
           Courses / Tracks ({courses.length})
         </button>
 
-        <button
-          onClick={() => setActiveTab("sessions")}
-          className={`pb-2.5 transition border-b-2 ${
-            activeTab === "sessions"
-              ? "border-teal-700 text-teal-800"
-              : "border-transparent text-slate-500 hover:text-slate-900"
-          }`}
-        >
-          Sessions ({sessions.length})
-        </button>
       </div>
 
       {/* TAB 0: REPORTS */}
@@ -940,126 +848,6 @@ export default function ProgramDetailPage({ params }: RouteContext) {
         </div>
       )}
 
-      {/* TAB 3: SESSIONS UI */}
-      {activeTab === "sessions" && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                Program Sessions & Attendance
-              </h3>
-              <p className="text-xs text-slate-500">Attendance records operate at the program level</p>
-            </div>
-
-            {isAssigned && (
-              <button
-                onClick={() => setIsAddSessionOpen(true)}
-                className="px-3 py-1.5 bg-teal-700 hover:bg-teal-800 text-white text-xs font-medium rounded-md transition flex items-center space-x-1.5 shadow-xs"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>+ Add Session</span>
-              </button>
-            )}
-          </div>
-
-          <div className="bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden">
-            {sessions.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-500">
-                No sessions created for this program yet. Click &quot;+ Add Session&quot; to set up session attendance dates.
-              </div>
-            ) : (
-              <table className="w-full text-xs text-left">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold uppercase tracking-wider text-[11px]">
-                  <tr>
-                    <th className="py-2.5 px-4">Session Title</th>
-                    <th className="py-2.5 px-4">Session Date</th>
-                    <th className="py-2.5 px-4">Status</th>
-                    <th className="py-2.5 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {sessions.map((s) => (
-                    <tr key={s.id} className="hover:bg-slate-50 transition">
-                      <td className="py-2.5 px-4 font-bold text-slate-900">
-                        <Link
-                          href={`/programs/${program.id}/sessions/${s.id}/attendance`}
-                          className="hover:text-teal-700 hover:underline flex items-center space-x-1.5"
-                        >
-                          <Calendar className="w-3.5 h-3.5 text-teal-700 shrink-0" />
-                          <span>{s.title}</span>
-                        </Link>
-                      </td>
-                      <td className="py-2.5 px-4 text-slate-600 font-medium">
-                        {new Date(s.session_date).toLocaleDateString()}
-                      </td>
-                      <td className="py-2.5 px-4">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border ${
-                            s.is_active
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : "bg-slate-100 text-slate-600 border-slate-300"
-                          }`}
-                        >
-                          {s.is_active ? "Active" : "Inactive (Soft-deleted)"}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-4 text-right space-x-2">
-                        {s.is_active ? (
-                          <Link
-                            href={`/programs/${program.id}/sessions/${s.id}/attendance`}
-                            className="px-2.5 py-1 bg-teal-700 hover:bg-teal-800 text-white rounded text-[11px] font-medium transition inline-flex items-center space-x-1"
-                          >
-                            <CheckCheck className="w-3 h-3" />
-                            <span>Mark Attendance</span>
-                          </Link>
-                        ) : (
-                          <Link
-                            href={`/programs/${program.id}/sessions/${s.id}/attendance`}
-                            className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 border border-slate-300 rounded text-[11px] font-medium transition inline-flex items-center space-x-1"
-                            title="Session is inactive — attendance is read-only"
-                          >
-                            <CheckCheck className="w-3 h-3" />
-                            <span>View Attendance</span>
-                          </Link>
-                        )}
-
-
-                        {isAssigned && (
-                          <>
-                            <button
-                              onClick={() => {
-                                setEditSessionTarget(s);
-                                setEditSessionForm({
-                                  title: s.title,
-                                  session_date: s.session_date ? new Date(s.session_date).toISOString().split("T")[0] : "",
-                                  is_active: s.is_active,
-                                });
-                              }}
-                              className="p-1 text-slate-500 hover:text-teal-700 inline-block"
-                              title="Edit Session"
-                            >
-                              <Edit className="w-3.5 h-3.5" />
-                            </button>
-                            {s.is_active && (
-                              <button
-                                onClick={() => setDeactivateSessionTarget(s)}
-                                className="p-1 text-slate-400 hover:text-rose-600 inline-block"
-                                title="Deactivate Session"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* TAB 4: INTAKE FORM TEMPLATE BUILDER & VIEWER */}
       {activeTab === "form-template" && (
@@ -1240,135 +1028,6 @@ export default function ProgramDetailPage({ params }: RouteContext) {
         programId={id}
       />
 
-      {/* SESSIONS: ADD SESSION MODAL */}
-      <Modal
-        isOpen={isAddSessionOpen}
-        onClose={() => setIsAddSessionOpen(false)}
-        title="Add New Program Session"
-      >
-        <form onSubmit={handleAddSessionSubmit} className="space-y-4 text-xs">
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">
-              Session Title <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={addSessionForm.title}
-              onChange={(e) => setAddSessionForm({ ...addSessionForm, title: e.target.value })}
-              placeholder="e.g. Session 1: Orientation & Foundations"
-              className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">
-              Session Date <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="date"
-              required
-              value={addSessionForm.session_date}
-              onChange={(e) => setAddSessionForm({ ...addSessionForm, session_date: e.target.value })}
-              className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-            />
-          </div>
-
-          <div className="flex justify-end space-x-2 pt-3 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => setIsAddSessionOpen(false)}
-              className="px-3.5 py-1.5 rounded-md text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={addSessionLoading}
-              className="px-4 py-1.5 rounded-md text-xs font-medium bg-teal-700 hover:bg-teal-800 text-white transition disabled:opacity-50 flex items-center space-x-1.5"
-            >
-              {addSessionLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-              <span>Create Session</span>
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* SESSIONS: EDIT SESSION MODAL */}
-      <Modal
-        isOpen={Boolean(editSessionTarget)}
-        onClose={() => setEditSessionTarget(null)}
-        title="Edit Session Details"
-      >
-        <form onSubmit={handleEditSessionSubmit} className="space-y-4 text-xs">
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">
-              Session Title <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={editSessionForm.title}
-              onChange={(e) => setEditSessionForm({ ...editSessionForm, title: e.target.value })}
-              className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">
-              Session Date <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="date"
-              required
-              value={editSessionForm.session_date}
-              onChange={(e) => setEditSessionForm({ ...editSessionForm, session_date: e.target.value })}
-              className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">Active Status</label>
-            <select
-              value={editSessionForm.is_active ? "active" : "inactive"}
-              onChange={(e) => setEditSessionForm({ ...editSessionForm, is_active: e.target.value === "active" })}
-              className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-            >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive (Soft-deleted)</option>
-            </select>
-          </div>
-
-          <div className="flex justify-end space-x-2 pt-3 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => setEditSessionTarget(null)}
-              className="px-3.5 py-1.5 rounded-md text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={editSessionLoading}
-              className="px-4 py-1.5 rounded-md text-xs font-medium bg-teal-700 hover:bg-teal-800 text-white transition disabled:opacity-50 flex items-center space-x-1.5"
-            >
-              {editSessionLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-              <span>Save Changes</span>
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* SESSIONS: DEACTIVATE SESSION CONFIRM DIALOG */}
-      <ConfirmDialog
-        isOpen={Boolean(deactivateSessionTarget)}
-        onClose={() => setDeactivateSessionTarget(null)}
-        onConfirm={handleDeactivateSessionConfirm}
-        title="Deactivate Session"
-        description={`Are you sure you want to deactivate session "${deactivateSessionTarget?.title}"? Its status will be updated to inactive.`}
-        isLoading={deactivateSessionLoading}
-        confirmLabel="Deactivate Session"
-      />
 
       {/* INTAKE FORM BUILDER: ADD / EDIT FIELD MODAL */}
       <Modal

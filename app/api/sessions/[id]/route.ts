@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError, parseDate } from "../../../../lib/api";
-import { getFacilitatorProgramIds, requireAuth } from "../../../../lib/auth";
+import { getFacilitatorCourseIds, requireAuth } from "../../../../lib/auth";
 import { prisma } from "../../../../lib/prisma";
 import { updateSessionSchema } from "../../../../lib/validation";
 
@@ -17,7 +17,10 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     const session = await prisma.session.findUnique({
       where: { id: sessionId },
-      include: { program: true },
+      include: {
+        program: true,
+        course: true,
+      },
     });
 
     if (!session) {
@@ -25,9 +28,9 @@ export async function GET(req: NextRequest, context: RouteContext) {
     }
 
     if (user.role === "facilitator") {
-      const assignedProgramIds = await getFacilitatorProgramIds(user.id);
-      if (!assignedProgramIds.includes(session.program_id)) {
-        throw new ApiError("Forbidden: session not in your assigned programs", 403);
+      const assignedCourseIds = await getFacilitatorCourseIds(user.id, session.program_id);
+      if (!assignedCourseIds.includes(session.course_id)) {
+        throw new ApiError("Forbidden: session not in your assigned courses", 403);
       }
     }
 
@@ -44,7 +47,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     const session = await prisma.session.findUnique({
       where: { id: sessionId },
-      select: { id: true, program_id: true },
+      select: { id: true, program_id: true, course_id: true },
     });
 
     if (!session) {
@@ -52,9 +55,9 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     }
 
     if (user.role === "facilitator") {
-      const assignedProgramIds = await getFacilitatorProgramIds(user.id);
-      if (!assignedProgramIds.includes(session.program_id)) {
-        throw new ApiError("Forbidden: session not in your assigned programs", 403);
+      const assignedCourseIds = await getFacilitatorCourseIds(user.id, session.program_id);
+      if (!assignedCourseIds.includes(session.course_id)) {
+        throw new ApiError("Forbidden: session not in your assigned courses", 403);
       }
     }
 
@@ -68,6 +71,10 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
           session_date: parseDate(body.session_date)!,
         }),
         ...(body.is_active !== undefined && { is_active: body.is_active }),
+      },
+      include: {
+        program: true,
+        course: true,
       },
     });
 
@@ -84,7 +91,7 @@ export async function DELETE(req: NextRequest, context: RouteContext) {
 
     const session = await prisma.session.findUnique({
       where: { id: sessionId },
-      select: { id: true, program_id: true },
+      select: { id: true, program_id: true, course_id: true },
     });
 
     if (!session) {
@@ -92,9 +99,9 @@ export async function DELETE(req: NextRequest, context: RouteContext) {
     }
 
     if (user.role === "facilitator") {
-      const assignedProgramIds = await getFacilitatorProgramIds(user.id);
-      if (!assignedProgramIds.includes(session.program_id)) {
-        throw new ApiError("Forbidden: session not in your assigned programs", 403);
+      const assignedCourseIds = await getFacilitatorCourseIds(user.id, session.program_id);
+      if (!assignedCourseIds.includes(session.course_id)) {
+        throw new ApiError("Forbidden: session not in your assigned courses", 403);
       }
     }
 

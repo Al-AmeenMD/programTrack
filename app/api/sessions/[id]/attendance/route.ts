@@ -1,7 +1,7 @@
 import { AttendanceStatus, EnrollmentStatus } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError } from "../../../../../lib/api";
-import { getFacilitatorProgramIds, requireAuth } from "../../../../../lib/auth";
+import { getFacilitatorCourseIds, requireAuth } from "../../../../../lib/auth";
 import { prisma } from "../../../../../lib/prisma";
 import { markAttendanceSchema } from "../../../../../lib/validation";
 
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     const session = await prisma.session.findUnique({
       where: { id: sessionId },
-      select: { id: true, program_id: true },
+      select: { id: true, program_id: true, course_id: true },
     });
 
     if (!session) {
@@ -26,9 +26,9 @@ export async function GET(req: NextRequest, context: RouteContext) {
     }
 
     if (user.role === "facilitator") {
-      const assignedProgramIds = await getFacilitatorProgramIds(user.id);
-      if (!assignedProgramIds.includes(session.program_id)) {
-        throw new ApiError("Forbidden: session not in your assigned programs", 403);
+      const assignedCourseIds = await getFacilitatorCourseIds(user.id, session.program_id);
+      if (!assignedCourseIds.includes(session.course_id)) {
+        throw new ApiError("Forbidden: session not in your assigned courses", 403);
       }
     }
 
@@ -42,6 +42,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
     const enrollments = await prisma.enrollment.findMany({
       where: {
         program_id: session.program_id,
+        course_id: session.course_id,
         ...enrollmentStatusFilter,
       },
       include: {
@@ -120,7 +121,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const session = await prisma.session.findUnique({
       where: { id: sessionId },
-      select: { id: true, program_id: true },
+      select: { id: true, program_id: true, course_id: true },
     });
 
     if (!session) {
@@ -128,9 +129,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     if (user.role === "facilitator") {
-      const assignedProgramIds = await getFacilitatorProgramIds(user.id);
-      if (!assignedProgramIds.includes(session.program_id)) {
-        throw new ApiError("Forbidden: session not in your assigned programs", 403);
+      const assignedCourseIds = await getFacilitatorCourseIds(user.id, session.program_id);
+      if (!assignedCourseIds.includes(session.course_id)) {
+        throw new ApiError("Forbidden: session not in your assigned courses", 403);
       }
     }
 

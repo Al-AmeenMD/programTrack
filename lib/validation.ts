@@ -175,6 +175,7 @@ export const submitFormResponseSchema = z.object({
 });
 
 export const createSessionSchema = z.object({
+  course_id: z.string().uuid("Valid course_id UUID is required").optional(),
   title: z.string().trim().min(1, "Session title is required"),
   session_date: z.string().trim().min(1, "Session date is required"),
 });
@@ -203,7 +204,6 @@ export const updateAttendanceRecordSchema = z.object({
 });
 
 export const markAllPresentSchema = z.object({
-  course_id: optionalText,
   course_group_id: optionalText,
   except: z
     .array(

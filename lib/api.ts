@@ -39,6 +39,16 @@ export function handleApiError(error: unknown) {
       );
     }
 
+    if (error.code === "P2003") {
+      return NextResponse.json(
+        {
+          error:
+            "Cannot delete this record because other data still depends on it.",
+        },
+        { status: 409 }
+      );
+    }
+
     if (error.code === "P2025") {
       return NextResponse.json({ error: "Record not found" }, { status: 404 });
     }

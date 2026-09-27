@@ -645,6 +645,7 @@ async function main() {
     const session = await prisma.session.create({
       data: {
         program_id: program.id,
+        course_id: course1.id,
         title: `Session 1 ${tag}`,
         session_date: new Date(),
         is_active: true,
