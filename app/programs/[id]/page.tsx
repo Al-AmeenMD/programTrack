@@ -22,6 +22,8 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Modal, ConfirmDialog } from "@/components/ui/Dialog";
@@ -81,6 +83,10 @@ type ProgramDetail = {
   end_date: string | null;
   status: string;
   created_at: string;
+  _count?: {
+    enrollments: number;
+    active_enrollments: number;
+  };
 };
 
 type RouteContext = {
@@ -104,6 +110,9 @@ export default function ProgramDetailPage({ params }: RouteContext) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc" | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
+  const [total, setTotal] = useState(0);
 
   // Tab State
   const initialTab = (searchParams.get("tab") as "reports" | "enrollments" | "courses" | "form-template") || "reports";
@@ -186,16 +195,22 @@ export default function ProgramDetailPage({ params }: RouteContext) {
   const [templateWarning, setTemplateWarning] = useState<string | null>(null);
   const [templateSuccess, setTemplateSuccess] = useState<string | null>(null);
 
-  const fetchEnrollments = async () => {
+  const fetchEnrollments = async (targetPage = page) => {
     try {
-      const q = new URLSearchParams();
+      const q = new URLSearchParams({
+        page: String(targetPage),
+        pageSize: String(pageSize),
+      });
       if (sortOrder) {
         q.set("sortBy", "full_name");
         q.set("sortOrder", sortOrder);
       }
       const enrollRes = await fetch(`/api/programs/${id}/enrollments?${q.toString()}`);
       const enrollJson = await enrollRes.json();
-      if (enrollRes.ok) setEnrollments(enrollJson.data || []);
+      if (enrollRes.ok) {
+        setEnrollments(enrollJson.data || []);
+        setTotal(enrollJson.meta?.total || 0);
+      }
     } catch {
       // ignore
     }
@@ -221,7 +236,7 @@ export default function ProgramDetailPage({ params }: RouteContext) {
       const courseJson = await courseRes.json();
       if (courseRes.ok) setCourses(courseJson.data || []);
 
-      await fetchEnrollments();
+      await fetchEnrollments(page);
 
       const formRes = await fetch(`/api/programs/${id}/form-template`);
       const formJson = await formRes.json();
@@ -246,8 +261,10 @@ export default function ProgramDetailPage({ params }: RouteContext) {
   }, [id]);
 
   useEffect(() => {
-    fetchEnrollments();
-  }, [sortOrder]);
+    fetchEnrollments(page);
+  }, [page, sortOrder]);
+
+  const totalPages = Math.ceil(total / pageSize) || 1;
 
   // Program Level Actions
   const handleEditProgramSubmit = async (e: React.FormEvent) => {
@@ -586,7 +603,9 @@ export default function ProgramDetailPage({ params }: RouteContext) {
             <Users className="w-3.5 h-3.5 text-teal-700" />
             <span>Total Enrollments</span>
           </span>
-          <p className="text-xl font-bold text-slate-900">{enrollments.length}</p>
+          <p className="text-xl font-bold text-slate-900">
+            {program?._count?.enrollments ?? total}
+          </p>
         </div>
 
         <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs space-y-1">
@@ -595,7 +614,7 @@ export default function ProgramDetailPage({ params }: RouteContext) {
             <span>Active Enrollments</span>
           </span>
           <p className="text-xl font-bold text-emerald-700">
-            {enrollments.filter((e) => e.status === "active").length}
+            {program?._count?.active_enrollments ?? 0}
           </p>
         </div>
 
@@ -641,7 +660,7 @@ export default function ProgramDetailPage({ params }: RouteContext) {
               : "border-transparent text-slate-500 hover:text-slate-900"
           }`}
         >
-          Enrollments ({enrollments.length})
+          Enrollments ({program?._count?.enrollments ?? total})
         </button>
 
         <button
@@ -702,6 +721,7 @@ export default function ProgramDetailPage({ params }: RouteContext) {
                       <th
                         onClick={() => {
                           setSortOrder((prev) => (prev === "asc" ? "desc" : prev === "desc" ? null : "asc"));
+                          setPage(1);
                         }}
                         className="py-2.5 px-4 cursor-pointer select-none hover:bg-slate-100 transition group"
                         title="Sort by Name (A-Z / Z-A)"
@@ -815,6 +835,34 @@ export default function ProgramDetailPage({ params }: RouteContext) {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {/* Pagination Footer */}
+            {enrollments.length > 0 && total > pageSize && (
+              <div className="px-4 py-3 bg-slate-50/60 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600">
+                <div>
+                  Page <span className="font-semibold text-slate-900">{page}</span> of{" "}
+                  <span className="font-semibold text-slate-900">{totalPages}</span> ({total} total)
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={page <= 1}
+                    className="px-2.5 py-1 border border-slate-300 rounded bg-white hover:bg-slate-100 disabled:opacity-40 transition flex items-center space-x-1"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <span>Prev</span>
+                  </button>
+                  <button
+                    onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                    disabled={page >= totalPages}
+                    className="px-2.5 py-1 border border-slate-300 rounded bg-white hover:bg-slate-100 disabled:opacity-40 transition flex items-center space-x-1"
+                  >
+                    <span>Next</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             )}
           </div>

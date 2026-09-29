@@ -22,20 +22,33 @@ export async function GET(req: NextRequest, context: RouteContext) {
       }
     }
 
-    const program = await prisma.program.findUnique({
-      where: { id },
-      include: {
-        _count: {
-          select: { enrollments: true },
+    const [program, activeEnrollmentsCount] = await Promise.all([
+      prisma.program.findUnique({
+        where: { id },
+        include: {
+          _count: {
+            select: { enrollments: true },
+          },
         },
-      },
-    });
+      }),
+      prisma.enrollment.count({
+        where: { program_id: id, status: "active" },
+      }),
+    ]);
 
     if (!program) {
       return NextResponse.json({ error: "Program not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ data: program });
+    return NextResponse.json({
+      data: {
+        ...program,
+        _count: {
+          enrollments: program._count.enrollments,
+          active_enrollments: activeEnrollmentsCount,
+        },
+      },
+    });
   } catch (error) {
     return handleApiError(error);
   }
