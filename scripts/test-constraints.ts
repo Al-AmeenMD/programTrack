@@ -25,8 +25,8 @@ async function main() {
   const participant = await prisma.participant.findFirst()
   if (program && participant) {
     try {
-      await prisma.enrollment.create({ data: { participant_id: participant.id, program_id: program.id, status: 'registered' } })
-      await prisma.enrollment.create({ data: { participant_id: participant.id, program_id: program.id, status: 'registered' } })
+      await prisma.enrollment.create({ data: { participant_id: participant.id, program_id: program.id, status: 'active' } })
+      await prisma.enrollment.create({ data: { participant_id: participant.id, program_id: program.id, status: 'active' } })
       console.log('FAIL: duplicate enrollment was allowed')
     } catch (e) {
       console.log('PASS: duplicate enrollment rejected')

@@ -20,6 +20,9 @@ import {
   Layers,
   ShieldCheck,
   CheckCheck,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { Modal, ConfirmDialog } from "@/components/ui/Dialog";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -124,10 +127,10 @@ export default function CourseDetailPage({ params }: RouteContext) {
   const [deactivateSessionTarget, setDeactivateSessionTarget] = useState<SessionItem | null>(null);
   const [deactivateSessionLoading, setDeactivateSessionLoading] = useState(false);
 
-  // Search & Pagination
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [groupFilter, setGroupFilter] = useState("all");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc" | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(15);
   const [total, setTotal] = useState(0);
@@ -212,6 +215,7 @@ export default function CourseDetailPage({ params }: RouteContext) {
         status: statusFilter,
         ...(groupFilter !== "all" ? { course_group_id: groupFilter } : {}),
         ...(search.trim() ? { search: search.trim() } : {}),
+        ...(sortOrder ? { sortBy: "name", sortOrder } : {}),
       });
 
       const res = await fetch(`/api/programs/${programId}/enrollments?${query.toString()}`);
@@ -318,7 +322,7 @@ export default function CourseDetailPage({ params }: RouteContext) {
     if (!loading) {
       fetchEnrollments();
     }
-  }, [page, search, statusFilter, groupFilter]);
+  }, [page, search, statusFilter, groupFilter, sortOrder]);
 
   const handleCreateGroupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -891,7 +895,27 @@ export default function CourseDetailPage({ params }: RouteContext) {
               <table className="w-full text-xs text-left">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold uppercase tracking-wider text-[11px]">
                   <tr>
-                    <th className="py-2.5 px-4">Participant Name</th>
+                    <th
+                      onClick={() => {
+                        setSortOrder((prev) => (prev === "asc" ? "desc" : prev === "desc" ? null : "asc"));
+                        setPage(1);
+                      }}
+                      className="py-2.5 px-4 cursor-pointer select-none hover:bg-slate-100 transition group"
+                      title="Sort by Name (A-Z / Z-A)"
+                    >
+                      <div className="flex items-center space-x-1.5">
+                        <span>Participant Name</span>
+                        <span className="text-slate-400 group-hover:text-slate-700">
+                          {sortOrder === "asc" ? (
+                            <ArrowUp className="w-3.5 h-3.5 text-teal-700 font-bold" />
+                          ) : sortOrder === "desc" ? (
+                            <ArrowDown className="w-3.5 h-3.5 text-teal-700 font-bold" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-60" />
+                          )}
+                        </span>
+                      </div>
+                    </th>
                     <th className="py-2.5 px-4">Email</th>
                     <th className="py-2.5 px-4">Phone</th>
                     <th className="py-2.5 px-4">Group</th>

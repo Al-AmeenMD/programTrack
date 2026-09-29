@@ -17,6 +17,9 @@ import {
   BookOpen,
   Layers,
   ShieldCheck,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { Modal } from "@/components/ui/Dialog";
 import { useAuth } from "@/components/AuthProvider";
@@ -95,6 +98,7 @@ export default function AttendanceMarkingPage({ params }: RouteContext) {
   const [search, setSearch] = useState("");
   const [selectedGroupFilter, setSelectedGroupFilter] = useState("all");
   const [facilitatorAssignedGroupIds, setFacilitatorAssignedGroupIds] = useState<string[]>([]);
+  const [nameSortOrder, setNameSortOrder] = useState<"asc" | "desc" | null>(null);
 
   // Mark All Present Modal State
   const [isMarkAllOpen, setIsMarkAllOpen] = useState(false);
@@ -248,26 +252,38 @@ export default function AttendanceMarkingPage({ params }: RouteContext) {
   });
   const availableGroups = Array.from(availableGroupsMap.values());
 
-  // Filtered Roster
-  const filteredRoster = roster.filter((item) => {
-    const matchesSearch =
-      !search.trim() ||
-      item.participant.full_name.toLowerCase().includes(search.toLowerCase()) ||
-      (item.participant.email && item.participant.email.toLowerCase().includes(search.toLowerCase()));
+  // Filtered & Sorted Roster
+  const filteredRoster = React.useMemo(() => {
+    const list = roster.filter((item) => {
+      const matchesSearch =
+        !search.trim() ||
+        item.participant.full_name.toLowerCase().includes(search.toLowerCase()) ||
+        (item.participant.email && item.participant.email.toLowerCase().includes(search.toLowerCase()));
 
-    let matchesGroup = true;
-    if (selectedGroupFilter === "all") {
-      matchesGroup = true;
-    } else if (selectedGroupFilter === "my_groups") {
-      matchesGroup = Boolean(item.course_group_id && facilitatorAssignedGroupIds.includes(item.course_group_id));
-    } else if (selectedGroupFilter === "unassigned") {
-      matchesGroup = !item.course_group_id;
-    } else {
-      matchesGroup = item.course_group_id === selectedGroupFilter;
-    }
+      let matchesGroup = true;
+      if (selectedGroupFilter === "all") {
+        matchesGroup = true;
+      } else if (selectedGroupFilter === "my_groups") {
+        matchesGroup = Boolean(item.course_group_id && facilitatorAssignedGroupIds.includes(item.course_group_id));
+      } else if (selectedGroupFilter === "unassigned") {
+        matchesGroup = !item.course_group_id;
+      } else {
+        matchesGroup = item.course_group_id === selectedGroupFilter;
+      }
 
-    return matchesSearch && matchesGroup;
-  });
+      return matchesSearch && matchesGroup;
+    });
+
+    if (!nameSortOrder) return list;
+
+    return [...list].sort((a, b) => {
+      const nameA = a.participant.full_name.toLowerCase();
+      const nameB = b.participant.full_name.toLowerCase();
+      if (nameA < nameB) return nameSortOrder === "asc" ? -1 : 1;
+      if (nameA > nameB) return nameSortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [roster, search, selectedGroupFilter, facilitatorAssignedGroupIds, nameSortOrder]);
 
   const totalCount = filteredRoster.length;
   const markedCount = filteredRoster.filter((i) => i.attendance_record !== null).length;
@@ -532,7 +548,26 @@ export default function AttendanceMarkingPage({ params }: RouteContext) {
             <table className="w-full text-xs text-left">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold uppercase tracking-wider text-[11px]">
                 <tr>
-                  <th className="py-2.5 px-4">Participant Name</th>
+                  <th
+                    onClick={() => {
+                      setNameSortOrder((prev) => (prev === "asc" ? "desc" : prev === "desc" ? null : "asc"));
+                    }}
+                    className="py-2.5 px-4 cursor-pointer select-none hover:bg-slate-100 transition group"
+                    title="Sort by Name (A-Z / Z-A)"
+                  >
+                    <div className="flex items-center space-x-1.5">
+                      <span>Participant Name</span>
+                      <span className="text-slate-400 group-hover:text-slate-700">
+                        {nameSortOrder === "asc" ? (
+                          <ArrowUp className="w-3.5 h-3.5 text-teal-700 font-bold" />
+                        ) : nameSortOrder === "desc" ? (
+                          <ArrowDown className="w-3.5 h-3.5 text-teal-700 font-bold" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-60" />
+                        )}
+                      </span>
+                    </div>
+                  </th>
                   <th className="py-2.5 px-4">Contact Details</th>
                   <th className="py-2.5 px-4">Course / Track</th>
                   <th className="py-2.5 px-4">Group</th>

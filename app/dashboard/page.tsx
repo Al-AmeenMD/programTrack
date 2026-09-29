@@ -497,13 +497,7 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 pt-1">
-            <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl text-center">
-              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Registered</p>
-              <p className="text-2xl font-black text-slate-900 mt-1">{stats.statusCounts.registered}</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">Initial signups</p>
-            </div>
-
+          <div className="grid grid-cols-3 gap-3 pt-1">
             <div className="p-3.5 bg-teal-50/60 border border-teal-100 rounded-xl text-center">
               <p className="text-[11px] font-semibold text-teal-700 uppercase tracking-wider">Active</p>
               <p className="text-2xl font-black text-teal-900 mt-1">{stats.statusCounts.active}</p>

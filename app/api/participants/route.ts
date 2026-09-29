@@ -95,12 +95,22 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    const sortBy = searchParams.get("sortBy")?.trim();
+    const sortOrder = searchParams.get("sortOrder")?.toLowerCase() === "asc" ? "asc" : "desc";
+
+    let orderBy: Prisma.ParticipantOrderByWithRelationInput = { created_at: "desc" };
+    if (sortBy === "name" || sortBy === "full_name") {
+      orderBy = { full_name: sortOrder };
+    } else if (sortBy === "created_at") {
+      orderBy = { created_at: sortOrder };
+    }
+
     const [participants, total] = await Promise.all([
       prisma.participant.findMany({
         where,
         skip,
         take,
-        orderBy: { created_at: "desc" },
+        orderBy,
         include: {
           _count: {
             select: { enrollments: true },

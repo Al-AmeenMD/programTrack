@@ -2,7 +2,22 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, UserPlus, Trash2, Eye, ChevronLeft, ChevronRight, AlertCircle, RefreshCw, Filter, X, RotateCcw } from "lucide-react";
+import {
+  Search,
+  UserPlus,
+  Trash2,
+  Eye,
+  ChevronLeft,
+  ChevronRight,
+  AlertCircle,
+  RefreshCw,
+  Filter,
+  X,
+  RotateCcw,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+} from "lucide-react";
 import { Modal, ConfirmDialog } from "@/components/ui/Dialog";
 import { AddParticipantModal } from "@/components/AddParticipantModal";
 import { useAuth } from "@/components/AuthProvider";
@@ -43,6 +58,7 @@ export default function ParticipantsPage() {
   const [courseFilter, setCourseFilter] = useState("");
   const [genderFilter, setGenderFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("active");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc" | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(15);
   const [total, setTotal] = useState(0);
@@ -88,6 +104,7 @@ export default function ParticipantsPage() {
         ...(courseFilter ? { course_id: courseFilter } : {}),
         ...(genderFilter && genderFilter !== "all" ? { gender: genderFilter } : {}),
         ...(statusFilter ? { status: statusFilter } : {}),
+        ...(sortOrder ? { sortBy: "name", sortOrder } : {}),
       });
 
       const res = await fetch(`/api/participants?${query.toString()}`);
@@ -120,7 +137,7 @@ export default function ParticipantsPage() {
 
   useEffect(() => {
     fetchParticipants();
-  }, [page, search, programFilter, courseFilter, genderFilter, statusFilter]);
+  }, [page, search, programFilter, courseFilter, genderFilter, statusFilter, sortOrder]);
 
   useEffect(() => {
     fetchPrograms();
@@ -509,7 +526,27 @@ export default function ParticipantsPage() {
             <table className="w-full text-xs text-left">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold uppercase tracking-wider text-[11px]">
                 <tr>
-                  <th className="py-2.5 px-4">Participant Name</th>
+                  <th
+                    onClick={() => {
+                      setSortOrder((prev) => (prev === "asc" ? "desc" : prev === "desc" ? null : "asc"));
+                      setPage(1);
+                    }}
+                    className="py-2.5 px-4 cursor-pointer select-none hover:bg-slate-100 transition group"
+                    title="Sort by Name (A-Z / Z-A)"
+                  >
+                    <div className="flex items-center space-x-1.5">
+                      <span>Participant Name</span>
+                      <span className="text-slate-400 group-hover:text-slate-700">
+                        {sortOrder === "asc" ? (
+                          <ArrowUp className="w-3.5 h-3.5 text-teal-700 font-bold" />
+                        ) : sortOrder === "desc" ? (
+                          <ArrowDown className="w-3.5 h-3.5 text-teal-700 font-bold" />
+                        ) : (
+                          <ArrowUpDown className="w-3 h-3 opacity-60" />
+                        )}
+                      </span>
+                    </div>
+                  </th>
                   <th className="py-2.5 px-4">NIN Number</th>
                   <th className="py-2.5 px-4">Qualification</th>
                   <th className="py-2.5 px-4">Email</th>

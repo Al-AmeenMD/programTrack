@@ -74,12 +74,22 @@ export async function GET(req: NextRequest, context: RouteContext) {
       };
     }
 
+    const sortBy = searchParams.get("sortBy")?.trim();
+    const sortOrder = searchParams.get("sortOrder")?.toLowerCase() === "asc" ? "asc" : "desc";
+
+    let orderBy: Prisma.EnrollmentOrderByWithRelationInput = { enrolled_at: "desc" };
+    if (sortBy === "name" || sortBy === "full_name") {
+      orderBy = { participant: { full_name: sortOrder } };
+    } else if (sortBy === "enrolled_at" || sortBy === "created_at") {
+      orderBy = { enrolled_at: sortOrder };
+    }
+
     const [enrollments, total] = await Promise.all([
       prisma.enrollment.findMany({
         where,
         skip,
         take,
-        orderBy: { enrolled_at: "desc" },
+        orderBy,
         include: {
           participant: true,
           program: true,

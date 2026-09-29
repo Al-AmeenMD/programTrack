@@ -248,19 +248,19 @@ async function main() {
     {
       participant_id: participants[2].id,
       program_id: dataScience.id,
-      status: "registered" as const,
+      status: "active" as const,
       metadata: { cohort: "DS-2026-A" },
     },
     {
       participant_id: participants[3].id,
       program_id: dataScience.id,
-      status: "registered" as const,
+      status: "active" as const,
       metadata: { cohort: "DS-2026-A" },
     },
     {
       participant_id: participants[0].id,
       program_id: dataScience.id,
-      status: "registered" as const,
+      status: "active" as const,
       metadata: { cohort: "DS-2026-A", note: "Also enrolled in Data Analysis" },
     },
   ];

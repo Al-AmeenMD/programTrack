@@ -156,7 +156,7 @@ export async function createOrEnrollParticipant(
       program_id: programId,
       course_id: courseId || null,
       course_group_id: courseGroupId || null,
-      status: "registered",
+      status: "active",
     },
   });
 

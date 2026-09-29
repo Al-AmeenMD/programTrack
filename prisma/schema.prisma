@@ -106,7 +106,7 @@ model Enrollment {
   program_id      String           @db.Uuid
   course_id       String?          @db.Uuid
   course_group_id String?          @db.Uuid
-  status          EnrollmentStatus @default(registered)
+  status          EnrollmentStatus @default(active)
   metadata        Json             @default("{}")
   enrolled_at     DateTime         @default(now())
   created_at      DateTime         @default(now())

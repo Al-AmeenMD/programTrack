@@ -326,7 +326,7 @@ async function main() {
         program_id: program.id,
         course_id: course1.id,
         course_group_id: tempGroup.id,
-        status: "registered",
+        status: "active",
       },
     });
 
